@@ -322,7 +322,7 @@
     <string name="collections_pinned">مثبّتة</string>
     <string name="collections_tab_all">الكل</string>
     <string name="collections_your_collections">مجموعاتك</string>
-    <string name="compose_about_made_with">صنع بكل ❤️ بواسطة Tapframe والأصدقاء</string>
+    <string name="compose_about_made_with">Creat cu ❤️ de AF-Studio 2026</string>
     <string name="compose_about_version_format">الإصدار %1$s (%2$s)</string>
     <string name="compose_action_off">معطل</string>
     <string name="compose_action_on">مفعل</string>
@@ -1533,7 +1533,7 @@
     <string name="addon_already_installed">هذه الإضافة مثبتة بالفعل.</string>
     <string name="addon_invalid_url">أدخل رابط إضافة صالحًا</string>
     <string name="addon_load_manifest_failed">تعذر تحميل Manifest</string>
-    <string name="app_brand_name">Nuvio</string>
+    <string name="app_brand_name">AF Play</string>
     <string name="auth_account_deletion_failed">فشل حذف الحساب</string>
     <string name="auth_sign_in_failed">فشل تسجيل الدخول</string>
     <string name="auth_sign_out_failed">فشل تسجيل الخروج</string>

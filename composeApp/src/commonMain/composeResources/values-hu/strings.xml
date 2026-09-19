@@ -283,7 +283,7 @@
     <string name="collections_pinned">Kitűzött</string>
     <string name="collections_tab_all">Összes</string>
     <string name="collections_your_collections">Gyűjteményeid</string>
-    <string name="compose_about_made_with">Készítette ❤️-vel a Tapframe és barátai</string>
+    <string name="compose_about_made_with">Creat cu ❤️ de AF-Studio 2026</string>
     <string name="compose_about_version_format">Verzió: %1$s (%2$s)</string>
     <string name="compose_action_off">Ki</string>
     <string name="compose_action_on">Be</string>
@@ -1175,7 +1175,7 @@
     <string name="addon_already_installed">Ez a kiegészítő már telepítve van.</string>
     <string name="addon_invalid_url">Kérjük, érvényes kiegészítő URL-t adj meg</string>
     <string name="addon_load_manifest_failed">Nem sikerült betölteni a manifest fájlt</string>
-    <string name="app_brand_name">Nuvio</string>
+    <string name="app_brand_name">AF Play</string>
     <string name="auth_account_deletion_failed">A fiók törlése sikertelen</string>
     <string name="auth_sign_in_failed">Bejelentkezés sikertelen</string>
     <string name="auth_sign_out_failed">Kijelentkezés sikertelen</string>

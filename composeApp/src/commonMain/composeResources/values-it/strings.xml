@@ -123,7 +123,7 @@
   <string name="collections_pinned">In primo piano</string>
   <string name="collections_tab_all">Tutto</string>
   <string name="collections_your_collections">Le tue collezioni</string>
-  <string name="compose_about_made_with">Fatto con ❤️ da Tapframe e amici</string>
+  <string name="compose_about_made_with">Creat cu ❤️ de AF-Studio 2026</string>
   <string name="compose_about_version_format">Versione %1$s (%2$s)</string>
   <string name="compose_action_off">Off</string>
   <string name="compose_action_on">On</string>
@@ -954,7 +954,7 @@
   <string name="addon_already_installed">Questo addon è già installato.</string>
   <string name="addon_invalid_url">Inserisci un URL addon valido</string>
   <string name="addon_load_manifest_failed">Impossibile caricare il manifest</string>
-  <string name="app_brand_name">Nuvio</string>
+  <string name="app_brand_name">AF Play</string>
   <string name="auth_account_deletion_failed">Eliminazione account fallita</string>
   <string name="auth_sign_in_failed">Accesso fallito</string>
   <string name="auth_sign_out_failed">Disconnessione fallita</string>

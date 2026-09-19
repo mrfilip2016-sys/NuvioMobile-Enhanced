@@ -334,7 +334,7 @@
     <string name="collections_pinned">Đã ghim</string>
     <string name="collections_tab_all">Tất cả</string>
     <string name="collections_your_collections">Bộ sưu tập của bạn</string>
-    <string name="compose_about_made_with">Được tạo bằng ❤️ bởi Tapframe và bạn bè</string>
+    <string name="compose_about_made_with">Creat cu ❤️ de AF-Studio 2026</string>
     <string name="compose_about_version_format">Phiên bản %1$s (%2$s)</string>
     <string name="compose_action_off">Tắt</string>
     <string name="compose_action_on">Bật</string>
@@ -1677,7 +1677,7 @@
     <string name="addon_already_installed">Tiện ích này đã được cài đặt</string>
     <string name="addon_invalid_url">Nhập URL tiện ích hợp lệ</string>
     <string name="addon_load_manifest_failed">Không thể tải tệp kê khai</string>
-    <string name="app_brand_name">Nuvio</string>
+    <string name="app_brand_name">AF Play</string>
     <string name="auth_account_deletion_failed">Xóa tài khoản thất bại</string>
     <string name="auth_sign_in_failed">Đăng nhập thất bại</string>
     <string name="auth_sign_out_failed">Đăng xuất thất bại</string>

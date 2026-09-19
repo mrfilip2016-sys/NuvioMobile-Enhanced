@@ -334,7 +334,7 @@
     <string name="collections_pinned">Закреплено</string>
     <string name="collections_tab_all">Все</string>
     <string name="collections_your_collections">Ваши коллекции</string>
-    <string name="compose_about_made_with">Сделано с ❤️ Tapframe и друзьями</string>
+    <string name="compose_about_made_with">Creat cu ❤️ de AF-Studio 2026</string>
     <string name="compose_about_version_format">Версия %1$s (%2$s)</string>
     <string name="compose_action_off">Выкл.</string>
     <string name="compose_action_on">Вкл.</string>
@@ -1617,7 +1617,7 @@
     <string name="addon_already_installed">Этот аддон уже установлен.</string>
     <string name="addon_invalid_url">Введите действительный аддон URL.</string>
     <string name="addon_load_manifest_failed">Не удалось загрузить манифест</string>
-    <string name="app_brand_name">Nuvio</string>
+    <string name="app_brand_name">AF Play</string>
     <string name="auth_account_deletion_failed">Удаление аккаунта не удалось</string>
     <string name="auth_sign_in_failed">Не удалось войти в систему</string>
     <string name="auth_sign_out_failed">Не удалось выйти из системы</string>

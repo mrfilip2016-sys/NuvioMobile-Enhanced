@@ -291,7 +291,7 @@
     <string name="collections_pinned">Disematkan</string>
     <string name="collections_tab_all">Semua</string>
     <string name="collections_your_collections">Koleksi Anda</string>
-    <string name="compose_about_made_with">Dibuat dengan ❤️ oleh Tapframe dan teman-teman</string>
+    <string name="compose_about_made_with">Creat cu ❤️ de AF-Studio 2026</string>
     <string name="compose_about_version_format">Versi %1$s (%2$s)</string>
     <string name="compose_action_off">Nonaktif</string>
     <string name="compose_action_on">Aktif</string>
@@ -1243,7 +1243,7 @@
     <string name="addon_already_installed">Addon tersebut sudah terpasang.</string>
     <string name="addon_invalid_url">Masukkan URL addon yang valid</string>
     <string name="addon_load_manifest_failed">Tidak dapat memuat manifes</string>
-    <string name="app_brand_name">Nuvio</string>
+    <string name="app_brand_name">AF Play</string>
     <string name="auth_account_deletion_failed">Penghapusan akun gagal</string>
     <string name="auth_sign_in_failed">Masuk gagal</string>
     <string name="auth_sign_out_failed">Keluar gagal</string>

@@ -708,7 +708,8 @@ private fun LazyListScope.liveTvChannelGrid(
     onFavoriteClick: (LiveTvChannel) -> Unit,
     onPlayClick: (LiveTvChannel) -> Unit,
 ) {
-    val rows = channels.chunked(2)
+    val columns = 3
+    val rows = channels.chunked(columns)
     items(
         items = rows,
         key = { row -> "channel-row:" + row.joinToString("|") { it.id } },
@@ -728,7 +729,7 @@ private fun LazyListScope.liveTvChannelGrid(
                     modifier = Modifier.weight(1f),
                 )
             }
-            if (row.size == 1) {
+            repeat(columns - row.size) {
                 Spacer(modifier = Modifier.weight(1f))
             }
         }
@@ -752,7 +753,7 @@ private fun LiveTvPosterCard(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(1.35f),
+                .aspectRatio(0.68f),
             onClick = onPlayClick,
             color = tokens.colors.surface,
             shape = tokens.shapes.card,

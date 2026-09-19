@@ -308,7 +308,7 @@
     <string name="collections_pinned">ピン留め</string>
     <string name="collections_tab_all">すべて</string>
     <string name="collections_your_collections">マイコレクション</string>
-    <string name="compose_about_made_with">❤️ Tapframe とフレンズが制作</string>
+    <string name="compose_about_made_with">Creat cu ❤️ de AF-Studio 2026</string>
     <string name="compose_about_version_format">バージョン %1$s (%2$s)</string>
     <string name="compose_action_off">オフ</string>
     <string name="compose_action_on">オン</string>
@@ -1354,7 +1354,7 @@
     <string name="addon_already_installed">そのアドオンはすでにインストールされています。</string>
     <string name="addon_invalid_url">有効なアドオンURLを入力してください</string>
     <string name="addon_load_manifest_failed">マニフェストを読み込めませんでした</string>
-    <string name="app_brand_name">Nuvio</string>
+    <string name="app_brand_name">AF Play</string>
     <string name="auth_account_deletion_failed">アカウントの削除に失敗しました</string>
     <string name="auth_sign_in_failed">サインインに失敗しました</string>
     <string name="auth_sign_out_failed">サインアウトに失敗しました</string>

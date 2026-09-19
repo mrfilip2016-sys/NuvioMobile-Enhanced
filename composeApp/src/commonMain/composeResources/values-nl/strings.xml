@@ -334,7 +334,7 @@
     <string name="collections_pinned">Vastgezet</string>
     <string name="collections_tab_all">Alles</string>
     <string name="collections_your_collections">Jouw collecties</string>
-    <string name="compose_about_made_with">Gemaakt met ❤️ door Tapframe en vrienden</string>
+    <string name="compose_about_made_with">Creat cu ❤️ de AF-Studio 2026</string>
     <string name="compose_about_version_format">Versie %1$s (%2$s)</string>
     <string name="compose_action_off">Uit</string>
     <string name="compose_action_on">Aan</string>
@@ -1636,7 +1636,7 @@
     <string name="addon_already_installed">Die add-on is al geïnstalleerd.</string>
     <string name="addon_invalid_url">Voer een geldige add-on-URL in</string>
     <string name="addon_load_manifest_failed">Kan manifest niet laden</string>
-    <string name="app_brand_name">Nuvio</string>
+    <string name="app_brand_name">AF Play</string>
     <string name="auth_account_deletion_failed">Verwijderen van account mislukt</string>
     <string name="auth_sign_in_failed">Inloggen mislukt</string>
     <string name="auth_sign_out_failed">Uitloggen mislukt</string>

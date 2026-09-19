@@ -308,7 +308,7 @@
     <string name="collections_pinned">Připnuté</string>
     <string name="collections_tab_all">Vše</string>
     <string name="collections_your_collections">Vaše sbírky</string>
-    <string name="compose_about_made_with">Vytvořeno s ❤️ od Tapframe a přátel</string>
+    <string name="compose_about_made_with">Creat cu ❤️ de AF-Studio 2026</string>
     <string name="compose_about_version_format">Verze %1$s (%2$s)</string>
     <string name="compose_action_off">Vyp</string>
     <string name="compose_action_on">Zap</string>
@@ -1357,7 +1357,7 @@
     <string name="addon_already_installed">Tento doplněk je již nainstalován.</string>
     <string name="addon_invalid_url">Zadejte platnou URL doplňku</string>
     <string name="addon_load_manifest_failed">Nepodařilo se načíst manifest</string>
-    <string name="app_brand_name">Nuvio</string>
+    <string name="app_brand_name">AF Play</string>
     <string name="auth_account_deletion_failed">Smazání účtu selhalo</string>
     <string name="auth_sign_in_failed">Přihlášení selhalo</string>
     <string name="auth_sign_out_failed">Odhlášení selhalo</string>
