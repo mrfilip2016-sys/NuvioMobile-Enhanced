@@ -93,20 +93,49 @@ object ProfileRepository {
         return _state.value.profiles.isNotEmpty()
     }
 
+    private fun createAfPlayDefaultProfile(userId: String) {
+        val defaultProfile = NuvioProfile(
+            userId = userId,
+            profileIndex = 1,
+            name = "AF Play",
+            avatarColorHex = "#7C3AED",
+            usesPrimaryAddons = true,
+            usesPrimaryPlugins = true,
+        )
+        activeProfileIndex = 1
+        _state.value = ProfileState(
+            profiles = listOf(defaultProfile),
+            activeProfile = defaultProfile,
+            isLoaded = true,
+            hasEverSelectedProfile = true,
+            rememberLastProfileEnabled = true,
+        )
+        persist()
+        ThemeSettingsRepository.onProfileChanged()
+    }
+
     fun ensureLoaded(userId: String) {
         if (loadedCacheForUserId == userId && _state.value.isLoaded) return
 
         val stored = decodeStoredPayload()
         loadedCacheForUserId = userId
         if (stored == null) {
-            _state.value = ProfileState()
-            activeProfileIndex = 1
+            if (AuthRepository.state.value.isAnonymous) {
+                createAfPlayDefaultProfile(userId)
+            } else {
+                _state.value = ProfileState()
+                activeProfileIndex = 1
+            }
             return
         }
 
         if (stored.userId != userId) {
-            _state.value = ProfileState()
-            activeProfileIndex = 1
+            if (AuthRepository.state.value.isAnonymous) {
+                createAfPlayDefaultProfile(userId)
+            } else {
+                _state.value = ProfileState()
+                activeProfileIndex = 1
+            }
             return
         }
 

@@ -1,0 +1,76 @@
+{
+  "format": "afplay-preset",
+  "version": 3,
+  "preferences": {
+    "nuvio_theme_settings": {
+      "selected_app_language": {
+        "type": "string",
+        "value": "ro"
+      },
+      "dynamic_artwork_background_enabled_1": {
+        "type": "boolean",
+        "value": true
+      },
+      "show_catalog_accent_enabled_1": {
+        "type": "boolean",
+        "value": false
+      },
+      "selected_theme_1": {
+        "type": "string",
+        "value": "OCEAN"
+      }
+    },
+    "nuvio_home_catalog_settings": {
+      "catalog_settings_payload_1": {
+        "type": "string",
+        "value": "{\"heroEnabled\":true,\"heroStyle\":\"full_bleed\",\"heroTrailerPlaybackEnabled\":false,\"heroTrailerStartDelaySeconds\":0,\"heroTrailerStartUnmuted\":false,\"showCatalogType\":true,\"hideUnreleasedContent\":false,\"items\":[{\"key\":\"com.linvo.cinemeta:movie:top\",\"customTitle\":\"\",\"enabled\":true,\"heroSourceEnabled\":true,\"order\":0},{\"key\":\"com.linvo.cinemeta:series:top\",\"customTitle\":\"\",\"enabled\":true,\"heroSourceEnabled\":true,\"order\":1},{\"key\":\"com.linvo.cinemeta:movie:imdbRating\",\"customTitle\":\"\",\"enabled\":true,\"heroSourceEnabled\":false,\"order\":2},{\"key\":\"com.linvo.cinemeta:series:imdbRating\",\"customTitle\":\"\",\"enabled\":true,\"heroSourceEnabled\":false,\"order\":3},{\"key\":\"tmdb-addon:movie:tmdb.top\",\"customTitle\":\"\",\"enabled\":true,\"heroSourceEnabled\":false,\"order\":4},{\"key\":\"tmdb-addon:series:tmdb.top\",\"customTitle\":\"\",\"enabled\":true,\"heroSourceEnabled\":false,\"order\":5},{\"key\":\"tmdb-addon:movie:tmdb.year\",\"customTitle\":\"\",\"enabled\":true,\"heroSourceEnabled\":false,\"order\":6},{\"key\":\"tmdb-addon:series:tmdb.year\",\"customTitle\":\"\",\"enabled\":true,\"heroSourceEnabled\":false,\"order\":7},{\"key\":\"tmdb-addon:movie:tmdb.language\",\"customTitle\":\"\",\"enabled\":true,\"heroSourceEnabled\":false,\"order\":8},{\"key\":\"tmdb-addon:series:tmdb.language\",\"customTitle\":\"\",\"enabled\":true,\"heroSourceEnabled\":false,\"order\":9},{\"key\":\"tmdb-addon:movie:tmdb.trending\",\"customTitle\":\"\",\"enabled\":true,\"heroSourceEnabled\":false,\"order\":10},{\"key\":\"tmdb-addon:series:tmdb.trending\",\"customTitle\":\"\",\"enabled\":true,\"heroSourceEnabled\":false,\"order\":11},{\"key\":\"tmdb-addon:movie:tmdb.latest\",\"customTitle\":\"\",\"enabled\":true,\"heroSourceEnabled\":false,\"order\":12},{\"key\":\"tmdb-addon:series:tmdb.latest\",\"customTitle\":\"\",\"enabled\":true,\"heroSourceEnabled\":false,\"order\":13}]}"
+      }
+    },
+    "nuvio_player_settings": {
+      "resize_mode_1": {
+        "type": "string",
+        "value": "Zoom"
+      },
+      "preferred_audio_language_1": {
+        "type": "string",
+        "value": "default"
+      },
+      "use_legacy_player_layout_1": {
+        "type": "boolean",
+        "value": true
+      },
+      "preferred_subtitle_language_1": {
+        "type": "string",
+        "value": "ro"
+      },
+      "android_playback_engine_1": {
+        "type": "string",
+        "value": "ExoPlayer"
+      },
+      "map_dv7_to_hevc_1": {
+        "type": "boolean",
+        "value": true
+      }
+    },
+    "nuvio_addons": {
+      "installed_manifest_urls_1": {
+        "type": "string",
+        "value": "https:\/\/opensubtitles-v3.strem.io\/manifest.json\nhttps:\/\/opensubtitlesv3-pro.dexter21767.com\/manifest.json\nhttps:\/\/2ecbbd610840-opensubtitles.baby-beamup.club\/manifest.json\nhttps:\/\/subdl.strem.top\/manifest.json\nhttps:\/\/v3-cinemeta.strem.io\/manifest.json\nhttps:\/\/94c8cb9f702d-tmdb-addon.baby-beamup.club\/manifest.json\nhttps:\/\/torrentio.strem.fun\/manifest.json\nhttps:\/\/thepiratebay-plus.strem.fun\/manifest.json\nhttps:\/\/torrentio.strem.fun\/language=romanian,italian\/manifest.json\nhttps:\/\/torrentio.strem.fun\/language=romanian,italian%7Cqualityfilter=1080p,720p,nonthreed,dolbyvision,brremux,hdrall,dolbyvisionwithhdr,other,scr,cam,4k,threed\/manifest.json"
+      },
+      "installed_manifest_enabled_states_1": {
+        "type": "string",
+        "value": "https:\/\/opensubtitles-v3.strem.io\/manifest.json\ttrue\nhttps:\/\/opensubtitlesv3-pro.dexter21767.com\/manifest.json\ttrue\nhttps:\/\/2ecbbd610840-opensubtitles.baby-beamup.club\/manifest.json\ttrue\nhttps:\/\/subdl.strem.top\/manifest.json\ttrue\nhttps:\/\/v3-cinemeta.strem.io\/manifest.json\ttrue\nhttps:\/\/94c8cb9f702d-tmdb-addon.baby-beamup.club\/manifest.json\ttrue\nhttps:\/\/torrentio.strem.fun\/manifest.json\ttrue\nhttps:\/\/thepiratebay-plus.strem.fun\/manifest.json\ttrue\nhttps:\/\/torrentio.strem.fun\/language=romanian,italian\/manifest.json\ttrue\nhttps:\/\/torrentio.strem.fun\/language=romanian,italian%7Cqualityfilter=1080p,720p,nonthreed,dolbyvision,brremux,hdrall,dolbyvisionwithhdr,other,scr,cam,4k,threed\/manifest.json\ttrue"
+      }
+    },
+    "nuvio_live_tv": {
+      "playlist_url_1": {
+        "type": "string",
+        "value": "https:\/\/acasatv.co\/zxy.json"
+      },
+      "playlists_blob_1": {
+        "type": "string",
+        "value": "playlist:ea7d64b4:0\u001ftv\u001fUrl\u001fhttps:\/\/acasatv.co\/zxy.json\u001ftrue"
+      }
+    }
+  }
+}

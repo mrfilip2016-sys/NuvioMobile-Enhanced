@@ -34,9 +34,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -129,6 +131,7 @@ fun NuvioPosterCard(
     showTitleBelow: Boolean = true,
     bottomLeftLogoUrl: String? = null,
     bottomLeftText: String? = null,
+    imdbRating: String? = null,
     isWatched: Boolean = false,
     onClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
@@ -209,6 +212,36 @@ fun NuvioPosterCard(
                             modifier = Modifier.widthIn(max = catalogLogoOverlaySize.textMaxWidth),
                         )
                     }
+                }
+            }
+
+            if (!imdbRating.isNullOrBlank()) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(horizontal = NuvioTokens.Space.s8, vertical = NuvioTokens.Space.s8)
+                        .background(
+                            color = Color(0xFFF5C518),
+                            shape = RoundedCornerShape(NuvioTokens.Radius.sm),
+                        )
+                        .padding(horizontal = NuvioTokens.Space.s6, vertical = NuvioTokens.Space.s4),
+                    horizontalArrangement = Arrangement.spacedBy(NuvioTokens.Space.s4),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "IMDb",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.Black,
+                        fontWeight = FontWeight.Black,
+                        maxLines = 1,
+                    )
+                    Text(
+                        text = imdbRating,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                    )
                 }
             }
 

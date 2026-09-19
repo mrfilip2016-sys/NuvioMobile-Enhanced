@@ -26,6 +26,7 @@ import org.jetbrains.compose.resources.getString
 object AuthRepository {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val log = Logger.withTag("AuthRepository")
+    private const val AF_PLAY_DEFAULT_USER_ID = "af-play-default-user"
 
     private val _state = MutableStateFlow<AuthState>(AuthState.Loading)
     val state: StateFlow<AuthState> = _state.asStateFlow()
@@ -43,13 +44,14 @@ object AuthRepository {
         initialized = true
 
         val savedAnonId = AuthStorage.loadAnonymousUserId()
-        if (savedAnonId != null) {
-            _state.value = AuthState.Authenticated(
-                userId = savedAnonId,
-                email = null,
-                isAnonymous = true,
-            )
+        val localUserId = savedAnonId ?: AF_PLAY_DEFAULT_USER_ID.also {
+            AuthStorage.saveAnonymousUserId(it)
         }
+        _state.value = AuthState.Authenticated(
+            userId = localUserId,
+            email = null,
+            isAnonymous = true,
+        )
 
         sessionStatusJob = scope.launch {
             SupabaseProvider.client.auth.sessionStatus.collect { status ->
@@ -108,7 +110,7 @@ object AuthRepository {
     @OptIn(ExperimentalUuidApi::class)
     fun signInAnonymously() {
         _error.value = null
-        val userId = Uuid.random().toString()
+        val userId = AuthStorage.loadAnonymousUserId() ?: AF_PLAY_DEFAULT_USER_ID
         AuthStorage.saveAnonymousUserId(userId)
         _state.value = AuthState.Authenticated(
             userId = userId,

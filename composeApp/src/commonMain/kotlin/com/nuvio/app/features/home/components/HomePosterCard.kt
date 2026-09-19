@@ -31,6 +31,7 @@ fun HomePosterCard(
         showTitleBelow = !posterCardStyle.hideLabelsEnabled,
         bottomLeftLogoUrl = if (isLandscapeMode && showLandscapeOverlay) item.logo else null,
         bottomLeftText = if (isLandscapeMode && showLandscapeOverlay && item.logo.isNullOrBlank() && !posterCardStyle.hideLabelsEnabled) item.name else null,
+        imdbRating = item.imdbRating,
         isWatched = isWatched,
         onClick = onClick,
         onLongClick = onLongClick,

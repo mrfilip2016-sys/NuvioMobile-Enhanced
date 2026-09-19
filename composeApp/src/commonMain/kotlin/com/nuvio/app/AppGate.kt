@@ -406,10 +406,10 @@ internal fun AppGate(
                 if (allowCachedProfileAccess) {
                     enterProfileGate(cachedProfiles, syncOnEnter = false)
                 } else {
-                    ProfileRepository.clearInMemory()
                     profileSelectionLoading = false
                     profileSelectionTransitionActive = false
-                    gateScreen = AppGateScreen.Auth.name
+                    AuthRepository.signInAnonymously()
+                    gateScreen = AppGateScreen.Loading.name
                 }
             }
             is AuthState.Authenticated -> {

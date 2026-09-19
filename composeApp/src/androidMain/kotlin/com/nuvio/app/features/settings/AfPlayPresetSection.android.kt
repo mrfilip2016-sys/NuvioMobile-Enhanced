@@ -16,18 +16,26 @@ import org.json.JSONObject
 internal actual fun AfPlayPresetSection(isTablet: Boolean) {
     val context = LocalContext.current
     var status by remember { mutableStateOf<String?>(null) }
+    var pendingExportPayload by remember { mutableStateOf<String?>(null) }
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
+        val payload = pendingExportPayload
+        pendingExportPayload = null
+        if (uri == null || payload == null) return@rememberLauncherForActivityResult
+
         runCatching {
-            val payload = AfPlayPresetCodec.exportPreset(context)
-            context.contentResolver.openOutputStream(uri, "wt")?.bufferedWriter()?.use {
-                it.write(payload)
+            val bytes = payload.encodeToByteArray()
+            require(bytes.isNotEmpty()) { "Presetul generat este gol." }
+            context.contentResolver.openOutputStream(uri, "w")?.use { stream ->
+                stream.write(bytes)
+                stream.flush()
             } ?: error("Nu pot deschide fișierul pentru scriere.")
-        }.onSuccess {
-            status = "Preset exportat. Poate fi inclus în următorul APK AF Play."
+            bytes.size
+        }.onSuccess { byteCount ->
+            val kb = (byteCount + 1023) / 1024
+            status = "Preset exportat: ${kb} KB."
         }.onFailure {
             status = "Export eșuat: ${it.message.orEmpty()}"
         }
@@ -57,14 +65,26 @@ internal actual fun AfPlayPresetSection(isTablet: Boolean) {
         SettingsGroup(isTablet = isTablet) {
             SettingsNavigationRow(
                 title = "Exportă preset AF Play",
-                description = "Salvează aspectul, addonurile publice, listele TV M3U/JSON și setările aplicației pentru un APK preconfigurat.",
+                description = status ?: "Salvează aspectul, addonurile publice, listele TV M3U/JSON și setările aplicației pentru un APK preconfigurat.",
                 isTablet = isTablet,
-                onClick = { exportLauncher.launch("AF-Play-Preset.json") },
+                onClick = {
+                    runCatching {
+                        AfPlayPresetCodec.exportPreset(context)
+                    }.onSuccess { payload ->
+                        pendingExportPayload = payload
+                        val kb = (payload.encodeToByteArray().size + 1023) / 1024
+                        status = "Preset pregătit: ${kb} KB. Alege unde îl salvezi."
+                        exportLauncher.launch("AF-Play-Preset.json")
+                    }.onFailure {
+                        pendingExportPayload = null
+                        status = "Generare preset eșuată: ${it.message.orEmpty()}"
+                    }
+                },
             )
             SettingsGroupDivider(isTablet = isTablet)
             SettingsNavigationRow(
                 title = "Importă preset AF Play",
-                description = status ?: "Aplică un preset exportat anterior pe acest dispozitiv.",
+                description = "Aplică un preset exportat anterior pe acest dispozitiv.",
                 isTablet = isTablet,
                 onClick = {
                     importLauncher.launch(
