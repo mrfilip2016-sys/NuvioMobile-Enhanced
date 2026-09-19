@@ -29,52 +29,44 @@ jobs:
           p = Path("composeApp/src/androidMain/kotlin/com/nuvio/app/features/settings/AfPlayPresetSection.android.kt")
           t = p.read_text(encoding="utf-8")
 
-          # Include Live TV preferences in AF Play preset export/import.
           if '"nuvio_live_tv",' not in t:
               anchor = '        "nuvio_addons",'
               if anchor not in t:
                   raise SystemExit("AF Play v0.5.1: preferenceFiles anchor not found")
               t = t.replace(anchor, anchor + '\n        "nuvio_live_tv",', 1)
 
-          # Preserve M3U / JSON playlist data exactly.
-          # Do NOT export Stalker/Xtream account credentials.
           if 'prefsName == "nuvio_live_tv"' not in t:
-              marker = '        if (prefsName == "nuvio_addons") {'
-              idx = t.find(marker)
+              idx = t.find('        if (prefsName == "nuvio_addons") {')
               if idx < 0:
-                  raise SystemExit("AF Play v0.5.1: sanitizeValue addon block not found")
+                  raise SystemExit("AF Play v0.5.1: addon sanitizer block not found")
 
-              generic = '        return when (raw) {'
-              insert_at = t.find(generic, idx)
+              insert_at = t.find('        return when (raw) {', idx)
               if insert_at < 0:
                   raise SystemExit("AF Play v0.5.1: generic sanitizer block not found")
 
-              live_tv_block = r'''
-        if (prefsName == "nuvio_live_tv") {
-            val loweredKey = key.lowercase()
-
-            // Portal credentials are intentionally excluded from portable backups.
-            if (
-                "stalker_settings" in loweredKey ||
-                "xtream_settings" in loweredKey
-            ) {
-                return null
-            }
-
-            // Keep TV playlist configuration byte-for-byte so local M3U/JSON
-            // contents and URL parameters are not damaged by URL sanitizing.
-            if (
-                "playlist_url" in loweredKey ||
-                "playlists_blob" in loweredKey ||
-                "favorite_channel_ids_blob" in loweredKey ||
-                "last_watched_channel_id" in loweredKey ||
-                "navigation_enabled" in loweredKey
-            ) {
-                return raw
-            }
-        }
-
-'''
+              live_tv_block = (
+                  '        if (prefsName == "nuvio_live_tv") {\n'
+                  '            val loweredKey = key.lowercase()\n'
+                  '\n'
+                  '            if (\n'
+                  '                "stalker_settings" in loweredKey ||\n'
+                  '                "xtream_settings" in loweredKey\n'
+                  '            ) {\n'
+                  '                return null\n'
+                  '            }\n'
+                  '\n'
+                  '            if (\n'
+                  '                "playlist_url" in loweredKey ||\n'
+                  '                "playlists_blob" in loweredKey ||\n'
+                  '                "favorite_channel_ids_blob" in loweredKey ||\n'
+                  '                "last_watched_channel_id" in loweredKey ||\n'
+                  '                "navigation_enabled" in loweredKey\n'
+                  '            ) {\n'
+                  '                return raw\n'
+                  '            }\n'
+                  '        }\n'
+                  '\n'
+              )
               t = t[:insert_at] + live_tv_block + t[insert_at:]
 
           t = t.replace(
@@ -104,14 +96,13 @@ jobs:
 
           p.write_text(t, encoding="utf-8")
 
-          # Version 0.5.1 / code 251.
           p = Path("iosApp/Configuration/Version.xcconfig")
           t = p.read_text(encoding="utf-8")
           t = re.sub(r"(?m)^MARKETING_VERSION=.*$", "MARKETING_VERSION=0.5.1", t)
           t = re.sub(r"(?m)^CURRENT_PROJECT_VERSION=.*$", "CURRENT_PROJECT_VERSION=251", t)
           p.write_text(t, encoding="utf-8")
 
-          print("AF Play v0.5.1: Live TV M3U/JSON backup export fixed.")
+          print("AF Play v0.5.1: M3U/JSON backup fix applied.")
           PY
 
       - name: Verify backup fix
@@ -133,9 +124,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            composeApp/src/androidMain/kotlin/com/nuvio/app/features/settings/AfPlayPresetSection.android.kt \
-            iosApp/Configuration/Version.xcconfig
+          git add             composeApp/src/androidMain/kotlin/com/nuvio/app/features/settings/AfPlayPresetSection.android.kt             iosApp/Configuration/Version.xcconfig
           if ! git diff --cached --quiet; then
             git commit -m "AF Play 0.5.1: include Live TV M3U JSON in preset backup"
             git push origin HEAD:af-play
@@ -159,15 +148,7 @@ jobs:
           set -euo pipefail
           mkdir -p "$HOME/.android"
           if [[ ! -f "$HOME/.android/debug.keystore" ]]; then
-            keytool -genkeypair \
-              -keystore "$HOME/.android/debug.keystore" \
-              -storepass android \
-              -alias androiddebugkey \
-              -keypass android \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -dname "CN=AF Play Debug,O=AF Play,C=IT"
+            keytool -genkeypair               -keystore "$HOME/.android/debug.keystore"               -storepass android               -alias androiddebugkey               -keypass android               -keyalg RSA               -keysize 2048               -validity 10000               -dname "CN=AF Play Debug,O=AF Play,C=IT"
           fi
 
       - name: Set up Gradle
@@ -179,10 +160,7 @@ jobs:
           set -euo pipefail
           touch local.properties
           chmod +x gradlew
-          ./gradlew :androidApp:assembleFullDebug \
-            -Pnuvio.android.distribution=full \
-            -Pnuvio.app.versionName="0.5.1" \
-            --stacktrace
+          ./gradlew :androidApp:assembleFullDebug             -Pnuvio.android.distribution=full             -Pnuvio.app.versionName="0.5.1"             --stacktrace
 
       - name: Collect APK
         shell: bash
