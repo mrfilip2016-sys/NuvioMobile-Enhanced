@@ -57,7 +57,7 @@ internal actual fun AfPlayPresetSection(isTablet: Boolean) {
         SettingsGroup(isTablet = isTablet) {
             SettingsNavigationRow(
                 title = "Exportă preset AF Play",
-                description = "Salvează aspectul, addonurile publice și setările aplicației pentru un APK preconfigurat.",
+                description = "Salvează aspectul, addonurile publice, listele TV M3U/JSON și setările aplicației pentru un APK preconfigurat.",
                 isTablet = isTablet,
                 onClick = { exportLauncher.launch("AF-Play-Preset.json") },
             )
@@ -77,7 +77,7 @@ internal actual fun AfPlayPresetSection(isTablet: Boolean) {
 }
 
 internal object AfPlayPresetCodec {
-    private const val PRESET_VERSION = 1
+    private const val PRESET_VERSION = 3
 
     private val preferenceFiles = listOf(
         "nuvio_theme_settings",
@@ -89,6 +89,7 @@ internal object AfPlayPresetCodec {
         "nuvio_poster_card_style",
         "nuvio_discover_selection",
         "nuvio_addons",
+        "nuvio_live_tv",
     )
 
     private val deniedKeyParts = listOf(
@@ -183,6 +184,27 @@ internal object AfPlayPresetCodec {
                     }
                     .distinct()
                     .joinToString("\n")
+            }
+        }
+
+        if (prefsName == "nuvio_live_tv") {
+            val loweredKey = key.lowercase()
+
+            if (
+                "stalker_settings" in loweredKey ||
+                "xtream_settings" in loweredKey
+            ) {
+                return null
+            }
+
+            if (
+                "playlist_url" in loweredKey ||
+                "playlists_blob" in loweredKey ||
+                "favorite_channel_ids_blob" in loweredKey ||
+                "last_watched_channel_id" in loweredKey ||
+                "navigation_enabled" in loweredKey
+            ) {
+                return raw
             }
         }
 
