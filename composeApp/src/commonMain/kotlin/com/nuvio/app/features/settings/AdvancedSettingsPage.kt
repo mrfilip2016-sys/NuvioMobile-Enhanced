@@ -152,6 +152,9 @@ internal fun LazyListScope.advancedSettingsContent(
         }
     }
     item {
+        AfPlayPresetSection(isTablet = isTablet)
+    }
+    item {
         SettingsSection(
             title = stringResource(Res.string.settings_advanced_section_debugging),
             isTablet = isTablet,

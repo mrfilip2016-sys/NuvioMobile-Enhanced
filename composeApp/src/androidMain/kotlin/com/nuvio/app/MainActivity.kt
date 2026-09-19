@@ -52,6 +52,7 @@ import com.nuvio.app.features.search.DiscoverSelectionStorage
 import com.nuvio.app.features.search.SearchHistoryStorage
 import com.nuvio.app.features.settings.SentrySettingsStorage
 import com.nuvio.app.features.settings.AppIconPlatform
+import com.nuvio.app.features.settings.AfPlayPresetBootstrap
 import com.nuvio.app.features.settings.ThemeSettingsStorage
 import com.nuvio.app.features.trakt.TraktAuthStorage
 import com.nuvio.app.features.trakt.TraktCommentsStorage
@@ -84,6 +85,7 @@ open class MainActivity : AppCompatActivity() {
                 scrim = 0xFF020404.toInt(),
             ),
         )
+        AfPlayPresetBootstrap.applyIfFreshInstall(applicationContext)
         ThemeSettingsStorage.initialize(applicationContext)
         AppIconPlatform.initialize(applicationContext)
         SentrySettingsStorage.initialize(applicationContext)

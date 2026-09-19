@@ -162,14 +162,13 @@ object AuthRepository {
         } else {
             Result.success(Unit)
         }
-        val localCleanup = runCatching { LocalAccountDataCleaner.wipe() }
+        // AF Play keeps local configuration when the user signs out.
         _state.value = AuthState.Unauthenticated
 
         val failure = anonymousRead.exceptionOrNull()
             ?: anonymousClear.exceptionOrNull()
             ?: remoteSignOut.exceptionOrNull()
             ?: fallbackSessionClear.exceptionOrNull()
-            ?: localCleanup.exceptionOrNull()
         val cancellation = remoteSignOut.exceptionOrNull() as? CancellationException
             ?: fallbackSessionClear.exceptionOrNull() as? CancellationException
         if (cancellation != null) throw cancellation
