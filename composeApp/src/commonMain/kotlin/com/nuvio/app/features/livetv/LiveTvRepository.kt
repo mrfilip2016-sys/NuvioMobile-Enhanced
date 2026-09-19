@@ -401,6 +401,10 @@ private data class AfPlayTvChannel(
     val id: String? = null,
     val channelName: String = "",
     val channelImage: String? = null,
+    val category: String? = null,
+    val group: String? = null,
+    val groupTitle: String? = null,
+    val categories: List<String> = emptyList(),
     val channelLinks: List<AfPlayTvLink> = emptyList(),
 )
 
@@ -441,6 +445,10 @@ private fun parseAfPlayJsonPlaylist(
             name = channel.channelName.trim().ifBlank { "Channel" },
             streamUrl = streamUrl,
             logoUrl = channel.channelImage?.trim()?.takeIf(String::isNotBlank),
+            group = channel.category?.trim()?.takeIf(String::isNotBlank)
+                ?: channel.group?.trim()?.takeIf(String::isNotBlank)
+                ?: channel.groupTitle?.trim()?.takeIf(String::isNotBlank)
+                ?: channel.categories.firstOrNull()?.trim()?.takeIf(String::isNotBlank),
             playlistId = playlist?.id,
             playlistName = playlist?.name,
             streamType = safeLink.playerType?.trim()?.takeIf(String::isNotBlank),

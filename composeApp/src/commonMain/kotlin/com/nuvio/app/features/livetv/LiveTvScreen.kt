@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -332,7 +333,7 @@ fun LiveTvScreen(
                             )
                         }
                     } else {
-                        liveTvChannelList(
+                        liveTvChannelGrid(
                             channels = visibleChannels,
                             favoriteChannelIds = uiState.favoriteChannelIds,
                             uncategorizedGroupName = uncategorizedLabel,
@@ -697,6 +698,146 @@ private fun LiveTvRecentChannelCard(
                 }
             }
         }
+    }
+}
+
+private fun LazyListScope.liveTvChannelGrid(
+    channels: List<LiveTvChannel>,
+    favoriteChannelIds: Set<String>,
+    uncategorizedGroupName: String,
+    onFavoriteClick: (LiveTvChannel) -> Unit,
+    onPlayClick: (LiveTvChannel) -> Unit,
+) {
+    val rows = channels.chunked(2)
+    items(
+        items = rows,
+        key = { row -> "channel-row:" + row.joinToString("|") { it.id } },
+    ) { row ->
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            row.forEach { channel ->
+                LiveTvPosterCard(
+                    channel = channel,
+                    categoryName = categoryNameForChannel(channel, uncategorizedGroupName),
+                    isFavorite = channel.id in favoriteChannelIds,
+                    onFavoriteClick = { onFavoriteClick(channel) },
+                    onPlayClick = { onPlayClick(channel) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            if (row.size == 1) {
+                Spacer(modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun LiveTvPosterCard(
+    channel: LiveTvChannel,
+    categoryName: String,
+    isFavorite: Boolean,
+    onFavoriteClick: () -> Unit,
+    onPlayClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val tokens = MaterialTheme.nuvio
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1.35f),
+            onClick = onPlayClick,
+            color = tokens.colors.surface,
+            shape = tokens.shapes.card,
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (!channel.logoUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = channel.logoUrl,
+                        contentDescription = channel.name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.LiveTv,
+                            contentDescription = null,
+                            modifier = Modifier.size(40.dp),
+                            tint = tokens.colors.textMuted,
+                        )
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(7.dp),
+                    onClick = onFavoriteClick,
+                    color = Color.Black.copy(alpha = 0.58f),
+                    shape = RoundedCornerShape(50),
+                ) {
+                    Box(
+                        modifier = Modifier.size(36.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = if (isFavorite) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+                            contentDescription = null,
+                            tint = if (isFavorite) tokens.colors.accent else Color.White,
+                            modifier = Modifier.size(21.dp),
+                        )
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(8.dp),
+                    onClick = onPlayClick,
+                    color = Color.Black.copy(alpha = 0.72f),
+                    shape = RoundedCornerShape(50),
+                ) {
+                    Box(
+                        modifier = Modifier.size(40.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.PlayArrow,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(26.dp),
+                        )
+                    }
+                }
+            }
+        }
+
+        Text(
+            text = channel.name,
+            style = MaterialTheme.typography.titleSmall,
+            color = tokens.colors.textPrimary,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = categoryName,
+            style = MaterialTheme.typography.bodySmall,
+            color = tokens.colors.textMuted,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
