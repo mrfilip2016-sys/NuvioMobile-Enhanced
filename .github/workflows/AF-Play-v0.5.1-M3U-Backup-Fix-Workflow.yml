@@ -1,0 +1,201 @@
+name: AF Play v0.5.1 M3U JSON Backup Fix
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout AF Play
+        uses: actions/checkout@v4
+        with:
+          ref: af-play
+          fetch-depth: 0
+
+      - name: Fix TV playlist export backup
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path("composeApp/src/androidMain/kotlin/com/nuvio/app/features/settings/AfPlayPresetSection.android.kt")
+          t = p.read_text(encoding="utf-8")
+
+          # Include Live TV preferences in AF Play preset export/import.
+          if '"nuvio_live_tv",' not in t:
+              anchor = '        "nuvio_addons",'
+              if anchor not in t:
+                  raise SystemExit("AF Play v0.5.1: preferenceFiles anchor not found")
+              t = t.replace(anchor, anchor + '\n        "nuvio_live_tv",', 1)
+
+          # Preserve M3U / JSON playlist data exactly.
+          # Do NOT export Stalker/Xtream account credentials.
+          if 'prefsName == "nuvio_live_tv"' not in t:
+              marker = '        if (prefsName == "nuvio_addons") {'
+              idx = t.find(marker)
+              if idx < 0:
+                  raise SystemExit("AF Play v0.5.1: sanitizeValue addon block not found")
+
+              generic = '        return when (raw) {'
+              insert_at = t.find(generic, idx)
+              if insert_at < 0:
+                  raise SystemExit("AF Play v0.5.1: generic sanitizer block not found")
+
+              live_tv_block = r'''
+        if (prefsName == "nuvio_live_tv") {
+            val loweredKey = key.lowercase()
+
+            // Portal credentials are intentionally excluded from portable backups.
+            if (
+                "stalker_settings" in loweredKey ||
+                "xtream_settings" in loweredKey
+            ) {
+                return null
+            }
+
+            // Keep TV playlist configuration byte-for-byte so local M3U/JSON
+            // contents and URL parameters are not damaged by URL sanitizing.
+            if (
+                "playlist_url" in loweredKey ||
+                "playlists_blob" in loweredKey ||
+                "favorite_channel_ids_blob" in loweredKey ||
+                "last_watched_channel_id" in loweredKey ||
+                "navigation_enabled" in loweredKey
+            ) {
+                return raw
+            }
+        }
+
+'''
+              t = t[:insert_at] + live_tv_block + t[insert_at:]
+
+          t = t.replace(
+              'description = "Salvează aspectul, addonurile publice și setările aplicației pentru un APK preconfigurat.",',
+              'description = "Salvează aspectul, addonurile publice, listele TV M3U/JSON și setările aplicației pentru un APK preconfigurat.",',
+          )
+
+          t = re.sub(
+              r'private const val PRESET_VERSION = \d+',
+              'private const val PRESET_VERSION = 3',
+              t,
+              count=1,
+          )
+
+          required = [
+              '"nuvio_live_tv",',
+              'prefsName == "nuvio_live_tv"',
+              '"playlists_blob" in loweredKey',
+              '"playlist_url" in loweredKey',
+              '"stalker_settings" in loweredKey',
+              '"xtream_settings" in loweredKey',
+              'private const val PRESET_VERSION = 3',
+          ]
+          missing = [x for x in required if x not in t]
+          if missing:
+              raise SystemExit("AF Play v0.5.1 patch incomplete: " + repr(missing))
+
+          p.write_text(t, encoding="utf-8")
+
+          # Version 0.5.1 / code 251.
+          p = Path("iosApp/Configuration/Version.xcconfig")
+          t = p.read_text(encoding="utf-8")
+          t = re.sub(r"(?m)^MARKETING_VERSION=.*$", "MARKETING_VERSION=0.5.1", t)
+          t = re.sub(r"(?m)^CURRENT_PROJECT_VERSION=.*$", "CURRENT_PROJECT_VERSION=251", t)
+          p.write_text(t, encoding="utf-8")
+
+          print("AF Play v0.5.1: Live TV M3U/JSON backup export fixed.")
+          PY
+
+      - name: Verify backup fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE="composeApp/src/androidMain/kotlin/com/nuvio/app/features/settings/AfPlayPresetSection.android.kt"
+          grep -F '"nuvio_live_tv",' "$FILE"
+          grep -F 'prefsName == "nuvio_live_tv"' "$FILE"
+          grep -F '"playlists_blob" in loweredKey' "$FILE"
+          grep -F '"playlist_url" in loweredKey' "$FILE"
+          grep -F 'private const val PRESET_VERSION = 3' "$FILE"
+          grep -F 'MARKETING_VERSION=0.5.1' iosApp/Configuration/Version.xcconfig
+          grep -F 'CURRENT_PROJECT_VERSION=251' iosApp/Configuration/Version.xcconfig
+
+      - name: Commit AF Play 0.5.1 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            composeApp/src/androidMain/kotlin/com/nuvio/app/features/settings/AfPlayPresetSection.android.kt \
+            iosApp/Configuration/Version.xcconfig
+          if ! git diff --cached --quiet; then
+            git commit -m "AF Play 0.5.1: include Live TV M3U JSON in preset backup"
+            git push origin HEAD:af-play
+          fi
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Restore stable AF Play signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: af-play-debug-keystore-v1
+
+      - name: Create signing key if missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.android"
+          if [[ ! -f "$HOME/.android/debug.keystore" ]]; then
+            keytool -genkeypair \
+              -keystore "$HOME/.android/debug.keystore" \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=AF Play Debug,O=AF Play,C=IT"
+          fi
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build AF Play 0.5.1
+        shell: bash
+        run: |
+          set -euo pipefail
+          touch local.properties
+          chmod +x gradlew
+          ./gradlew :androidApp:assembleFullDebug \
+            -Pnuvio.android.distribution=full \
+            -Pnuvio.app.versionName="0.5.1" \
+            --stacktrace
+
+      - name: Collect APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          apk="$(find androidApp/build/outputs/apk/full/debug -type f -name '*arm64-v8a*.apk' | head -n 1)"
+          test -n "$apk"
+          cp "$apk" out/AF-Play-v0.5.1-M3U-BackupFix-arm64-v8a-debug.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AF-Play-v0.5.1-M3U-BackupFix-arm64
+          path: out/AF-Play-v0.5.1-M3U-BackupFix-arm64-v8a-debug.apk
+          if-no-files-found: error
