@@ -1,0 +1,195 @@
+name: AF Play v0.5
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout AF Play
+        uses: actions/checkout@v4
+        with:
+          ref: af-play
+          fetch-depth: 0
+
+      - name: Apply AF Play 0.5 UI update
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          # 1) Live TV: same mobile poster dimensions as movie cards.
+          # Movie grid uses 3 columns under 840dp, 12dp gap, poster ratio 0.68.
+          p = Path("composeApp/src/commonMain/kotlin/com/nuvio/app/features/livetv/LiveTvScreen.kt")
+          t = p.read_text(encoding="utf-8")
+
+          t = t.replace(
+              "    val rows = channels.chunked(2)",
+              "    val columns = 3\n    val rows = channels.chunked(columns)",
+          )
+          t = re.sub(
+              r"    val columns = \d+\n    val rows = channels\.chunked\(columns\)",
+              "    val columns = 3\n    val rows = channels.chunked(columns)",
+              t,
+              count=1,
+          )
+
+          old_spacer = '''            if (row.size == 1) {
+                          Spacer(modifier = Modifier.weight(1f))
+                      }'''
+          new_spacer = '''            repeat(columns - row.size) {
+                          Spacer(modifier = Modifier.weight(1f))
+                      }'''
+          if old_spacer in t:
+              t = t.replace(old_spacer, new_spacer, 1)
+          else:
+              # Handles whitespace/formatting variants while remaining scoped to this block.
+              t = re.sub(
+                  r"\s{12}if \(row\.size == 1\) \{\s*Spacer\(modifier = Modifier\.weight\(1f\)\)\s*\}",
+                  "            repeat(columns - row.size) {\n                Spacer(modifier = Modifier.weight(1f))\n            }",
+                  t,
+                  count=1,
+              )
+
+          t = t.replace(".aspectRatio(1.35f)", ".aspectRatio(0.68f)")
+
+          if "val columns = 3" not in t:
+              raise SystemExit("AF Play v0.5: TV grid patch failed (3 columns not found)")
+          if ".aspectRatio(0.68f)" not in t:
+              raise SystemExit("AF Play v0.5: TV poster ratio patch failed")
+          if "channels.chunked(2)" in t or ".aspectRatio(1.35f)" in t:
+              raise SystemExit("AF Play v0.5: old TV dimensions are still present")
+          p.write_text(t, encoding="utf-8")
+
+          # 2) Footer credit: force the requested wording in every translation,
+          # so changing app language does not bring Tapframe back.
+          footer = '<string name="compose_about_made_with">Creat cu ❤️ de AF-Studio 2026</string>'
+          resource_root = Path("composeApp/src/commonMain/composeResources")
+          changed = 0
+          for strings in resource_root.glob("values*/strings.xml"):
+              s = strings.read_text(encoding="utf-8")
+              n, count = re.subn(
+                  r'<string name="compose_about_made_with">.*?</string>',
+                  footer,
+                  s,
+                  count=1,
+              )
+              if count:
+                  strings.write_text(n, encoding="utf-8")
+                  changed += 1
+          if changed == 0:
+              raise SystemExit("AF Play v0.5: footer string key was not found")
+
+          # Keep AF Play brand name in translated resources too.
+          for strings in resource_root.glob("values*/strings.xml"):
+              s = strings.read_text(encoding="utf-8")
+              n = re.sub(
+                  r'<string name="app_brand_name">.*?</string>',
+                  '<string name="app_brand_name">AF Play</string>',
+                  s,
+                  count=1,
+              )
+              if n != s:
+                  strings.write_text(n, encoding="utf-8")
+
+          # 3) Version 0.5.0 / Android versionCode 250.
+          p = Path("iosApp/Configuration/Version.xcconfig")
+          t = p.read_text(encoding="utf-8")
+          t = re.sub(r"(?m)^MARKETING_VERSION=.*$", "MARKETING_VERSION=0.5.0", t)
+          t = re.sub(r"(?m)^CURRENT_PROJECT_VERSION=.*$", "CURRENT_PROJECT_VERSION=250", t)
+          p.write_text(t, encoding="utf-8")
+
+          print(f"AF Play v0.5 patch applied. Footer updated in {changed} locale files.")
+          PY
+
+      - name: Verify requested changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'Creat cu ❤️ de AF-Studio 2026' composeApp/src/commonMain/composeResources/values-ro/strings.xml
+          grep -F 'val columns = 3' composeApp/src/commonMain/kotlin/com/nuvio/app/features/livetv/LiveTvScreen.kt
+          grep -F '.aspectRatio(0.68f)' composeApp/src/commonMain/kotlin/com/nuvio/app/features/livetv/LiveTvScreen.kt
+          grep -F 'MARKETING_VERSION=0.5.0' iosApp/Configuration/Version.xcconfig
+          grep -F 'CURRENT_PROJECT_VERSION=250' iosApp/Configuration/Version.xcconfig
+
+      - name: Commit AF Play 0.5 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            composeApp/src/commonMain/kotlin/com/nuvio/app/features/livetv/LiveTvScreen.kt \
+            composeApp/src/commonMain/composeResources/values*/strings.xml \
+            iosApp/Configuration/Version.xcconfig
+          if ! git diff --cached --quiet; then
+            git commit -m "AF Play 0.5: movie-size TV cards and AF-Studio footer"
+            git push origin HEAD:af-play
+          fi
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Restore stable AF Play signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: af-play-debug-keystore-v1
+
+      - name: Create signing key if missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.android"
+          if [[ ! -f "$HOME/.android/debug.keystore" ]]; then
+            keytool -genkeypair \
+              -keystore "$HOME/.android/debug.keystore" \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=AF Play Debug,O=AF Play,C=IT"
+          fi
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build AF Play 0.5
+        shell: bash
+        run: |
+          set -euo pipefail
+          touch local.properties
+          chmod +x gradlew
+          ./gradlew :androidApp:assembleFullDebug \
+            -Pnuvio.android.distribution=full \
+            -Pnuvio.app.versionName="0.5.0" \
+            --stacktrace
+
+      - name: Collect APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          apk="$(find androidApp/build/outputs/apk/full/debug -type f -name '*arm64-v8a*.apk' | head -n 1)"
+          test -n "$apk"
+          cp "$apk" out/AF-Play-v0.5-arm64-v8a-debug.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AF-Play-v0.5-arm64
+          path: out/AF-Play-v0.5-arm64-v8a-debug.apk
+          if-no-files-found: error
