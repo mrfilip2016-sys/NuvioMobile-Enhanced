@@ -1,0 +1,200 @@
+name: AF Play Fire TV 32-bit Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout AF Play
+        uses: actions/checkout@v4
+        with:
+          ref: af-play
+          fetch-depth: 0
+
+      - name: Apply Fire TV 32-bit variant
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          # Build only armeabi-v7a for older / 32-bit Fire TV devices.
+          p = Path("androidApp/build.gradle.kts")
+          t = p.read_text(encoding="utf-8")
+          t = t.replace('applicationId = "app.afplay.mobile"', 'applicationId = "app.afplay.firetv32"', 1)
+          t = t.replace(
+              'variant.applicationId.set("app.afplay.mobile.debug")',
+              'variant.applicationId.set("app.afplay.firetv32.debug")',
+              1,
+          )
+
+          # Replace the ABI split configured on the AF Play branch.
+          t = re.sub(
+              r'include\("arm64-v8a"\)',
+              'include("armeabi-v7a")',
+              t,
+              count=1,
+          )
+          p.write_text(t, encoding="utf-8")
+
+          # Fire TV launcher integration.
+          p = Path("androidApp/src/main/AndroidManifest.xml")
+          t = p.read_text(encoding="utf-8")
+
+          feature_block = """    <uses-feature
+              android:name="android.hardware.touchscreen"
+              android:required="false" />
+              <uses-feature
+              android:name="android.software.leanback"
+              android:required="false" />
+
+          """
+          if "android.hardware.touchscreen" not in t:
+              t = t.replace("    <application\n", feature_block + "    <application\n", 1)
+
+          if 'android:banner="@drawable/af_play_tv_banner"' not in t:
+              t = t.replace(
+                  '        android:allowBackup="false"\n',
+                  '        android:allowBackup="false"\n        android:banner="@drawable/af_play_tv_banner"\n',
+                  1,
+              )
+
+          if 'android:name="com.nuvio.app.MainActivity"\n            android:screenOrientation="landscape"' not in t:
+              t = t.replace(
+                  '            android:name="com.nuvio.app.MainActivity"\n',
+                  '            android:name="com.nuvio.app.MainActivity"\n            android:screenOrientation="landscape"\n',
+                  1,
+              )
+
+          launcher_name = 'android:name="com.nuvio.app.launcher.AppIconDefault"'
+          idx = t.find(launcher_name)
+          if idx >= 0:
+              head = t[:idx]
+              tail = t[idx:]
+              activity = tail.split("</activity>", 1)[0]
+              if 'android:banner="@drawable/af_play_tv_banner"' not in activity:
+                  tail = tail.replace(
+                      launcher_name + '\n',
+                      launcher_name + '\n            android:banner="@drawable/af_play_tv_banner"\n            android:screenOrientation="landscape"\n',
+                      1,
+                  )
+              first_filter_end = tail.find("</intent-filter>")
+              if first_filter_end >= 0:
+                  first_filter = tail[:first_filter_end]
+                  if "android.intent.category.LEANBACK_LAUNCHER" not in first_filter:
+                      first_filter = first_filter.replace(
+                          '<category android:name="android.intent.category.LAUNCHER" />',
+                          '<category android:name="android.intent.category.LAUNCHER" />\n                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />',
+                          1,
+                      )
+                      tail = first_filter + tail[first_filter_end:]
+              t = head + tail
+
+          p.write_text(t, encoding="utf-8")
+
+          p = Path("iosApp/Configuration/Version.xcconfig")
+          t = p.read_text(encoding="utf-8")
+          t = re.sub(r"(?m)^MARKETING_VERSION=.*$", "MARKETING_VERSION=0.4.0-tv32", t)
+          t = re.sub(r"(?m)^CURRENT_PROJECT_VERSION=.*$", "CURRENT_PROJECT_VERSION=242", t)
+          p.write_text(t, encoding="utf-8")
+          PY
+
+          mkdir -p androidApp/src/main/res/drawable-nodpi
+          cp composeApp/src/commonMain/composeResources/drawable/af_play_wordmark.png \
+             androidApp/src/main/res/drawable-nodpi/af_play_tv_banner.png
+
+      - name: Embed AF Play preset if present
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p androidApp/src/main/assets
+          git fetch origin enhanced --depth=1
+          if git cat-file -e origin/enhanced:preset/AF-Play-Preset.json 2>/dev/null; then
+            git show origin/enhanced:preset/AF-Play-Preset.json \
+              > androidApp/src/main/assets/afplay-preset.json
+          fi
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Restore Fire TV 32-bit signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: af-play-firetv32-debug-keystore-v1
+
+      - name: Create signing key if missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.android"
+          if [[ ! -f "$HOME/.android/debug.keystore" ]]; then
+            keytool -genkeypair \
+              -keystore "$HOME/.android/debug.keystore" \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=AF Play Fire TV 32 Debug,O=AF Play,C=IT"
+          fi
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build 32-bit Fire TV APK
+        shell: bash
+        run: |
+          touch local.properties
+          chmod +x gradlew
+          ./gradlew :androidApp:assembleFullDebug \
+            -Pnuvio.android.distribution=full \
+            -Pnuvio.app.versionName="0.4.0-tv32" \
+            --stacktrace
+
+      - name: Validate native 32-bit libraries
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="$(find androidApp/build/outputs/apk/full/debug -type f -name '*armeabi-v7a*.apk' | head -n 1)"
+          test -n "$apk"
+
+          echo "APK: $apk"
+          unzip -l "$apk" | grep 'lib/armeabi-v7a/' | head -n 50
+
+          # Do not publish an APK that installs but then crashes because the
+          # native media/plugin engine is missing for this ABI.
+          for lib in libmpv.so libquickjs.so libnuvio_engine.so; do
+            if ! unzip -l "$apk" | grep -q "lib/armeabi-v7a/$lib"; then
+              echo "Missing required 32-bit native library: $lib"
+              exit 1
+            fi
+          done
+
+      - name: Collect APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          apk="$(find androidApp/build/outputs/apk/full/debug -type f -name '*armeabi-v7a*.apk' | head -n 1)"
+          cp "$apk" out/AF-Play-FireTV-32bit-armeabi-v7a-debug.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AF-Play-FireTV-32bit
+          path: out/AF-Play-FireTV-32bit-armeabi-v7a-debug.apk
+          if-no-files-found: error
