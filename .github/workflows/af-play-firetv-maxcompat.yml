@@ -1,0 +1,103 @@
+name: AF Play Fire TV Max Compatibility
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout AF Play
+        uses: actions/checkout@v4
+        with:
+          ref: af-play
+          fetch-depth: 0
+
+      - name: Apply Fire TV compatibility profile
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'CmZyb20gcGF0aGxpYiBpbXBvcnQgUGF0aAppbXBvcnQgcmUKCnAgPSBQYXRoKCJhbmRyb2lkQXBwL2J1aWxkLmdyYWRsZS5rdHMiKQp0ID0gcC5yZWFkX3RleHQoZW5jb2Rpbmc9InV0Zi04IikKCnQgPSB0LnJlcGxhY2UoCiAgICAnYXBwbGljYXRpb25JZCA9ICJhcHAuYWZwbGF5Lm1vYmlsZSInLAogICAgJ2FwcGxpY2F0aW9uSWQgPSAiYXBwLmFmcGxheS5maXJldHZjb21wYXQiJywKICAgIDEsCikKdCA9IHQucmVwbGFjZSgKICAgICd2YXJpYW50LmFwcGxpY2F0aW9uSWQuc2V0KCJhcHAuYWZwbGF5Lm1vYmlsZS5kZWJ1ZyIpJywKICAgICd2YXJpYW50LmFwcGxpY2F0aW9uSWQuc2V0KCJhcHAuYWZwbGF5LmZpcmV0dmNvbXBhdC5kZWJ1ZyIpJywKICAgIDEsCikKdCA9IHQucmVwbGFjZSgKICAgICd0YXJnZXRTZGsgPSBsaWJzLnZlcnNpb25zLmFuZHJvaWQudGFyZ2V0U2RrLmdldCgpLnRvSW50KCknLAogICAgJ3RhcmdldFNkayA9IDMwJywKICAgIDEsCikKCm9sZF9zcGxpdHMgPSAnJycgICAgc3BsaXRzIHsKICAgICAgICBhYmkgewogICAgICAgICAgICBpc0VuYWJsZSA9IHRydWUKICAgICAgICAgICAgcmVzZXQoKQogICAgICAgICAgICBpbmNsdWRlKCJhcm02NC12OGEiKQogICAgICAgICAgICBpc1VuaXZlcnNhbEFwayA9IGZhbHNlCiAgICAgICAgfQogICAgfQonJycKbmV3X3NwbGl0cyA9ICcnJyAgICBzcGxpdHMgewogICAgICAgIGFiaSB7CiAgICAgICAgICAgIGlzRW5hYmxlID0gZmFsc2UKICAgICAgICB9CiAgICB9CicnJwppZiBvbGRfc3BsaXRzIG5vdCBpbiB0OgogICAgcmFpc2UgU3lzdGVtRXhpdCgiQUJJIHNwbGl0cyBibG9jayBub3QgZm91bmQiKQp0ID0gdC5yZXBsYWNlKG9sZF9zcGxpdHMsIG5ld19zcGxpdHMsIDEpCgpkZWZhdWx0X21hcmtlciA9ICcgICAgICAgIHRlc3RJbnN0cnVtZW50YXRpb25SdW5uZXIgPSAiYW5kcm9pZHgudGVzdC5ydW5uZXIuQW5kcm9pZEpVbml0UnVubmVyIlxuJwphYmlfYmxvY2sgPSAnJycgICAgICAgIG5kayB7CiAgICAgICAgICAgIGFiaUZpbHRlcnMgKz0gbGlzdE9mKCJhcm1lYWJpLXY3YSIsICJhcm02NC12OGEiKQogICAgICAgIH0KJycnCmlmIGFiaV9ibG9jay5zdHJpcCgpIG5vdCBpbiB0OgogICAgaWYgZGVmYXVsdF9tYXJrZXIgbm90IGluIHQ6CiAgICAgICAgcmFpc2UgU3lzdGVtRXhpdCgiZGVmYXVsdENvbmZpZyBtYXJrZXIgbm90IGZvdW5kIikKICAgIHQgPSB0LnJlcGxhY2UoZGVmYXVsdF9tYXJrZXIsIGRlZmF1bHRfbWFya2VyICsgYWJpX2Jsb2NrLCAxKQoKcC53cml0ZV90ZXh0KHQsIGVuY29kaW5nPSJ1dGYtOCIpCgpwID0gUGF0aCgiYW5kcm9pZEFwcC9zcmMvbWFpbi9BbmRyb2lkTWFuaWZlc3QueG1sIikKdCA9IHAucmVhZF90ZXh0KGVuY29kaW5nPSJ1dGYtOCIpCgpmZWF0dXJlX2Jsb2NrID0gJycnICAgIDx1c2VzLWZlYXR1cmUKICAgICAgICBhbmRyb2lkOm5hbWU9ImFuZHJvaWQuaGFyZHdhcmUudG91Y2hzY3JlZW4iCiAgICAgICAgYW5kcm9pZDpyZXF1aXJlZD0iZmFsc2UiIC8+CiAgICA8dXNlcy1mZWF0dXJlCiAgICAgICAgYW5kcm9pZDpuYW1lPSJhbmRyb2lkLnNvZnR3YXJlLmxlYW5iYWNrIgogICAgICAgIGFuZHJvaWQ6cmVxdWlyZWQ9ImZhbHNlIiAvPgoKJycnCmlmICJhbmRyb2lkLmhhcmR3YXJlLnRvdWNoc2NyZWVuIiBub3QgaW4gdDoKICAgIHQgPSB0LnJlcGxhY2UoIiAgICA8YXBwbGljYXRpb25cbiIsIGZlYXR1cmVfYmxvY2sgKyAiICAgIDxhcHBsaWNhdGlvblxuIiwgMSkKCmlmICdhbmRyb2lkOmV4dHJhY3ROYXRpdmVMaWJzPSJ0cnVlIicgbm90IGluIHQ6CiAgICB0ID0gdC5yZXBsYWNlKAogICAgICAgICcgICAgICAgIGFuZHJvaWQ6ZW5hYmxlT25CYWNrSW52b2tlZENhbGxiYWNrPSJmYWxzZSJcbicsCiAgICAgICAgJyAgICAgICAgYW5kcm9pZDplbmFibGVPbkJhY2tJbnZva2VkQ2FsbGJhY2s9ImZhbHNlIlxuICAgICAgICBhbmRyb2lkOmV4dHJhY3ROYXRpdmVMaWJzPSJ0cnVlIlxuJywKICAgICAgICAxLAogICAgKQoKaWYgJ2FuZHJvaWQ6YmFubmVyPSJAZHJhd2FibGUvYWZfcGxheV90dl9iYW5uZXIiJyBub3QgaW4gdDoKICAgIHQgPSB0LnJlcGxhY2UoCiAgICAgICAgJyAgICAgICAgYW5kcm9pZDphbGxvd0JhY2t1cD0iZmFsc2UiXG4nLAogICAgICAgICcgICAgICAgIGFuZHJvaWQ6YWxsb3dCYWNrdXA9ImZhbHNlIlxuICAgICAgICBhbmRyb2lkOmJhbm5lcj0iQGRyYXdhYmxlL2FmX3BsYXlfdHZfYmFubmVyIlxuJywKICAgICAgICAxLAogICAgKQoKaWYgJ2FuZHJvaWQ6bmFtZT0iY29tLm51dmlvLmFwcC5NYWluQWN0aXZpdHkiXG4gICAgICAgICAgICBhbmRyb2lkOnNjcmVlbk9yaWVudGF0aW9uPSJsYW5kc2NhcGUiJyBub3QgaW4gdDoKICAgIHQgPSB0LnJlcGxhY2UoCiAgICAgICAgJyAgICAgICAgICAgIGFuZHJvaWQ6bmFtZT0iY29tLm51dmlvLmFwcC5NYWluQWN0aXZpdHkiXG4nLAogICAgICAgICcgICAgICAgICAgICBhbmRyb2lkOm5hbWU9ImNvbS5udXZpby5hcHAuTWFpbkFjdGl2aXR5IlxuICAgICAgICAgICAgYW5kcm9pZDpzY3JlZW5PcmllbnRhdGlvbj0ibGFuZHNjYXBlIlxuJywKICAgICAgICAxLAogICAgKQoKbGF1bmNoZXJfbmFtZSA9ICdhbmRyb2lkOm5hbWU9ImNvbS5udXZpby5hcHAubGF1bmNoZXIuQXBwSWNvbkRlZmF1bHQiJwppZHggPSB0LmZpbmQobGF1bmNoZXJfbmFtZSkKaWYgaWR4IDwgMDoKICAgIHJhaXNlIFN5c3RlbUV4aXQoIkRlZmF1bHQgbGF1bmNoZXIgYWN0aXZpdHkgbm90IGZvdW5kIikKCmhlYWQgPSB0WzppZHhdCnRhaWwgPSB0W2lkeDpdCmFjdGl2aXR5ID0gdGFpbC5zcGxpdCgiPC9hY3Rpdml0eT4iLCAxKVswXQoKaWYgJ2FuZHJvaWQ6YmFubmVyPSJAZHJhd2FibGUvYWZfcGxheV90dl9iYW5uZXIiJyBub3QgaW4gYWN0aXZpdHk6CiAgICB0YWlsID0gdGFpbC5yZXBsYWNlKAogICAgICAgIGxhdW5jaGVyX25hbWUgKyAnXG4nLAogICAgICAgIGxhdW5jaGVyX25hbWUgKyAnXG4gICAgICAgICAgICBhbmRyb2lkOmJhbm5lcj0iQGRyYXdhYmxlL2FmX3BsYXlfdHZfYmFubmVyIlxuICAgICAgICAgICAgYW5kcm9pZDpzY3JlZW5PcmllbnRhdGlvbj0ibGFuZHNjYXBlIlxuJywKICAgICAgICAxLAogICAgKQoKZmlyc3RfZmlsdGVyX2VuZCA9IHRhaWwuZmluZCgiPC9pbnRlbnQtZmlsdGVyPiIpCmlmIGZpcnN0X2ZpbHRlcl9lbmQgPCAwOgogICAgcmFpc2UgU3lzdGVtRXhpdCgiTGF1bmNoZXIgaW50ZW50LWZpbHRlciBub3QgZm91bmQiKQoKZmlyc3RfZmlsdGVyID0gdGFpbFs6Zmlyc3RfZmlsdGVyX2VuZF0KaWYgImFuZHJvaWQuaW50ZW50LmNhdGVnb3J5LkxFQU5CQUNLX0xBVU5DSEVSIiBub3QgaW4gZmlyc3RfZmlsdGVyOgogICAgZmlyc3RfZmlsdGVyID0gZmlyc3RfZmlsdGVyLnJlcGxhY2UoCiAgICAgICAgJzxjYXRlZ29yeSBhbmRyb2lkOm5hbWU9ImFuZHJvaWQuaW50ZW50LmNhdGVnb3J5LkxBVU5DSEVSIiAvPicsCiAgICAgICAgJzxjYXRlZ29yeSBhbmRyb2lkOm5hbWU9ImFuZHJvaWQuaW50ZW50LmNhdGVnb3J5LkxBVU5DSEVSIiAvPlxuJwogICAgICAgICcgICAgICAgICAgICAgICAgPGNhdGVnb3J5IGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5pbnRlbnQuY2F0ZWdvcnkuTEVBTkJBQ0tfTEFVTkNIRVIiIC8+JywKICAgICAgICAxLAogICAgKQogICAgdGFpbCA9IGZpcnN0X2ZpbHRlciArIHRhaWxbZmlyc3RfZmlsdGVyX2VuZDpdCgp0ID0gaGVhZCArIHRhaWwKcC53cml0ZV90ZXh0KHQsIGVuY29kaW5nPSJ1dGYtOCIpCgpwID0gUGF0aCgiaW9zQXBwL0NvbmZpZ3VyYXRpb24vVmVyc2lvbi54Y2NvbmZpZyIpCnQgPSBwLnJlYWRfdGV4dChlbmNvZGluZz0idXRmLTgiKQp0ID0gcmUuc3ViKHIiKD9tKV5NQVJLRVRJTkdfVkVSU0lPTj0uKiQiLCAiTUFSS0VUSU5HX1ZFUlNJT049MC40LjAtdHZjb21wYXQiLCB0KQp0ID0gcmUuc3ViKHIiKD9tKV5DVVJSRU5UX1BST0pFQ1RfVkVSU0lPTj0uKiQiLCAiQ1VSUkVOVF9QUk9KRUNUX1ZFUlNJT049MjQzIiwgdCkKcC53cml0ZV90ZXh0KHQsIGVuY29kaW5nPSJ1dGYtOCIpCg==' | base64 -d > /tmp/afplay_firetv_patch.py
+          python3 /tmp/afplay_firetv_patch.py
+
+          mkdir -p androidApp/src/main/res/drawable-nodpi
+          cp composeApp/src/commonMain/composeResources/drawable/af_play_wordmark.png              androidApp/src/main/res/drawable-nodpi/af_play_tv_banner.png
+
+      - name: Embed AF Play preset if present
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p androidApp/src/main/assets
+          git fetch origin enhanced --depth=1
+          if git cat-file -e origin/enhanced:preset/AF-Play-Preset.json 2>/dev/null; then
+            git show origin/enhanced:preset/AF-Play-Preset.json               > androidApp/src/main/assets/afplay-preset.json
+          fi
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Restore Fire TV compatibility signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: af-play-firetvcompat-debug-keystore-v1
+
+      - name: Create signing key if missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.android"
+          if [[ ! -f "$HOME/.android/debug.keystore" ]]; then
+            keytool -genkeypair               -keystore "$HOME/.android/debug.keystore"               -storepass android               -alias androiddebugkey               -keypass android               -keyalg RSA               -keysize 2048               -validity 10000               -dname "CN=AF Play Fire TV Compat Debug,O=AF Play,C=IT"
+          fi
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build universal ARM Fire TV APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          touch local.properties
+          chmod +x gradlew
+          ./gradlew :androidApp:assembleFullDebug             -Pnuvio.android.distribution=full             -Pnuvio.app.versionName="0.4.0-tvcompat"             --stacktrace
+
+      - name: Validate APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          apk="$(find androidApp/build/outputs/apk/full/debug -type f -name '*.apk' | head -n 1)"
+          test -n "$apk"
+          cp "$apk" out/AF-Play-FireTV-Universal-ARM-debug.apk
+
+          for abi in armeabi-v7a arm64-v8a; do
+            for lib in libmpv.so libquickjs.so libnuvio_engine.so; do
+              unzip -l out/AF-Play-FireTV-Universal-ARM-debug.apk                 | grep -q "lib/$abi/$lib"                 || { echo "Missing $abi/$lib"; exit 1; }
+            done
+          done
+
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+
+          "$AAPT" dump badging out/AF-Play-FireTV-Universal-ARM-debug.apk             | grep -E "^(package:|sdkVersion:|targetSdkVersion:|native-code:|application-label:|launchable-activity:)"             | tee out/firetv-badging.txt
+
+          "$APKSIGNER" verify --verbose --print-certs             out/AF-Play-FireTV-Universal-ARM-debug.apk             | tee out/firetv-signature.txt
+
+      - name: Upload universal Fire TV APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AF-Play-FireTV-Universal-ARM
+          path: |
+            out/AF-Play-FireTV-Universal-ARM-debug.apk
+            out/firetv-badging.txt
+            out/firetv-signature.txt
+          if-no-files-found: error
