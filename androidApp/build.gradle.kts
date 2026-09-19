@@ -49,7 +49,7 @@ val buildsReleaseApks = requestedTaskNames.any {
 }
 
 android {
-    namespace = "com.nuvio.android"
+    namespace = "app.afplay.mobile"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
     compileSdkMinor = libs.versions.android.compileSdkMinor.get().toInt()
 
@@ -65,7 +65,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.nuvio.media"
+        applicationId = "app.afplay.mobile"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = releaseAppVersionCode
@@ -110,9 +110,9 @@ android {
 
     splits {
         abi {
-            isEnable = buildsReleaseApks
+            isEnable = true
             reset()
-            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            include("arm64-v8a")
             isUniversalApk = false
         }
     }
@@ -144,7 +144,7 @@ android {
 
 androidComponents {
     onVariants(selector().withBuildType("debug")) { variant ->
-        variant.applicationId.set("com.nuviodebug.com")
+        variant.applicationId.set("app.afplay.mobile.debug")
     }
 }
 

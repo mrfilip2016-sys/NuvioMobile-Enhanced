@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import kotlin.random.Random
 
 object LiveTvRepository {
@@ -283,7 +285,7 @@ object LiveTvRepository {
                         LiveTvPlaylistType.Url -> withContext(Dispatchers.Default) { httpGetText(playlist.source) }
                         LiveTvPlaylistType.LocalFile -> playlist.source
                     }
-                    parseM3uPlaylist(payload, playlist)
+                    parseLiveTvPayload(payload, playlist)
                 }
 
                 result.fold(
@@ -381,6 +383,69 @@ object LiveTvRepository {
     private fun persistFavoriteChannelIds(channelIds: Set<String>) {
         LiveTvStorage.saveFavoriteChannelIdsBlob(channelIds.sorted().joinToString("\n"))
     }
+}
+
+
+private val afPlayLiveTvJson = Json {
+    ignoreUnknownKeys = true
+    isLenient = true
+}
+
+@Serializable
+private data class AfPlayTvRoot(
+    val channels: List<AfPlayTvChannel> = emptyList(),
+)
+
+@Serializable
+private data class AfPlayTvChannel(
+    val id: String? = null,
+    val channelName: String = "",
+    val channelImage: String? = null,
+    val channelLinks: List<AfPlayTvLink> = emptyList(),
+)
+
+@Serializable
+private data class AfPlayTvLink(
+    val quality: String? = null,
+    val playerType: String? = null,
+    val url: String = "",
+    val contentHost: String? = null,
+)
+
+internal fun parseLiveTvPayload(
+    payload: String,
+    playlist: LiveTvPlaylist? = null,
+): List<LiveTvChannel> {
+    val trimmed = payload.trimStart()
+    return if (trimmed.startsWith("{")) {
+        parseAfPlayJsonPlaylist(payload, playlist)
+    } else {
+        parseM3uPlaylist(payload, playlist)
+    }
+}
+
+private fun parseAfPlayJsonPlaylist(
+    payload: String,
+    playlist: LiveTvPlaylist? = null,
+): List<LiveTvChannel> {
+    val root = afPlayLiveTvJson.decodeFromString<AfPlayTvRoot>(payload)
+    return root.channels.mapIndexedNotNull { index, channel ->
+        val safeLink = channel.channelLinks.firstOrNull { link ->
+            val url = link.url.trim()
+            url.isNotBlank() && !url.contains("decryption_key=", ignoreCase = true)
+        } ?: return@mapIndexedNotNull null
+        val streamUrl = safeLink.url.trim()
+        LiveTvChannel(
+            id = channel.id?.trim()?.takeIf(String::isNotBlank)
+                ?: stableChannelId(streamUrl, index),
+            name = channel.channelName.trim().ifBlank { "Channel" },
+            streamUrl = streamUrl,
+            logoUrl = channel.channelImage?.trim()?.takeIf(String::isNotBlank),
+            playlistId = playlist?.id,
+            playlistName = playlist?.name,
+            streamType = safeLink.playerType?.trim()?.takeIf(String::isNotBlank),
+        )
+    }.distinctBy { it.streamUrl }
 }
 
 internal fun parseM3uPlaylist(

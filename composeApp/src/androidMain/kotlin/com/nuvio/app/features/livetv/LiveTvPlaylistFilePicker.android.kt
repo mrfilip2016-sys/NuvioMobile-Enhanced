@@ -36,6 +36,8 @@ internal actual fun rememberLiveTvPlaylistFilePicker(
                     "audio/mpegurl",
                     "audio/x-mpegurl",
                     "text/plain",
+                    "application/json",
+                    "text/json",
                     "application/octet-stream",
                 ),
             )
