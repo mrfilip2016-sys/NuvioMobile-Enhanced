@@ -17,7 +17,7 @@ jobs:
         with:
           ref: enhanced
           fetch-depth: 0
-          submodules: recursive
+          submodules: false
 
       - name: Create AF Play branch
         shell: bash
@@ -240,7 +240,7 @@ jobs:
               steps:
                 - uses: actions/checkout@v4
                   with:
-                    submodules: recursive
+                    submodules: false
                 - uses: actions/setup-java@v4
                   with:
                     distribution: temurin
