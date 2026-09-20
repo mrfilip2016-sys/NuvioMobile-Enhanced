@@ -445,10 +445,13 @@ private fun parseAfPlayJsonPlaylist(
             name = channel.channelName.trim().ifBlank { "Channel" },
             streamUrl = streamUrl,
             logoUrl = channel.channelImage?.trim()?.takeIf(String::isNotBlank),
-            group = channel.category?.trim()?.takeIf(String::isNotBlank)
-                ?: channel.group?.trim()?.takeIf(String::isNotBlank)
-                ?: channel.groupTitle?.trim()?.takeIf(String::isNotBlank)
-                ?: channel.categories.firstOrNull()?.trim()?.takeIf(String::isNotBlank),
+            group = resolveLiveTvCategory(
+                channelName = channel.channelName,
+                explicitGroup = channel.category?.trim()?.takeIf(String::isNotBlank)
+                    ?: channel.group?.trim()?.takeIf(String::isNotBlank)
+                    ?: channel.groupTitle?.trim()?.takeIf(String::isNotBlank)
+                    ?: channel.categories.firstOrNull()?.trim()?.takeIf(String::isNotBlank),
+            ),
             playlistId = playlist?.id,
             playlistName = playlist?.name,
             streamType = safeLink.playerType?.trim()?.takeIf(String::isNotBlank),
@@ -482,7 +485,10 @@ internal fun parseM3uPlaylist(
                         name = name,
                         streamUrl = streamUrl,
                         logoUrl = info?.logoUrl?.takeIf(String::isNotBlank),
-                        group = info?.group?.takeIf(String::isNotBlank),
+                        group = resolveLiveTvCategory(
+                            channelName = name,
+                            explicitGroup = info?.group?.takeIf(String::isNotBlank),
+                        ),
                         playlistId = playlist?.id,
                         playlistName = playlist?.name,
                     )
@@ -499,6 +505,43 @@ private data class M3uInfo(
     val logoUrl: String?,
     val group: String?,
 )
+
+private fun resolveLiveTvCategory(
+    channelName: String,
+    explicitGroup: String?,
+): String {
+    val explicit = explicitGroup
+        ?.trim()
+        ?.takeIf(String::isNotBlank)
+        ?.takeUnless(::isGenericUncategorizedGroup)
+    if (explicit != null) return explicit
+
+    val name = channelName.lowercase()
+    return when {
+        name.containsAny("digi sport", "prima sport", "eurosport", "orange sport", "fightbox", "motorvision", "nba tv", "golf", "tennis") -> "Sport"
+        name.containsAny("digi24", "digi 24", "antena 3", "romania tv", "românia tv", "realitatea", "b1 tv", "euronews", "news", "cnn", "bbc world", "sky news") -> "Știri"
+        name.containsAny("hbo", "cinemax", "film now", "film+", "axn", "amc", "diva", "warner tv", "epic drama", "tv1000", "paramount", "comedy central") -> "Filme & Seriale"
+        name.containsAny("disney", "cartoon", "nickelodeon", "nick jr", "nicktoons", "minimax", "jimjam", "duck tv", "boomerang", "baby tv", "cartoonito") -> "Copii"
+        name.containsAny("discovery", "national geographic", "nat geo", "history", "viasat", "animal planet", "bbc earth", "docubox", "love nature") -> "Documentare"
+        name.containsAny("kiss tv", "utv", "music", "mtv", "mezzo", "zu tv", "etno", "taraf", "favorit tv", "hora tv", "folclor") -> "Muzică"
+        name.containsAny("tlc", "food network", "24 kitchen", "fine living", "fashion", "travelxp", "hgtv") -> "Lifestyle"
+        name.containsAny("trinitas", "speranta", "speranța", "alfa omega", "credinta", "credința") -> "Religie"
+        name.containsAny("teleshop", "teleshopping", "shopping tv", "shop tv") -> "Teleshopping"
+        else -> "General"
+    }
+}
+
+private fun isGenericUncategorizedGroup(value: String): Boolean {
+    val normalized = value.trim().lowercase()
+    return normalized in setOf(
+        "uncategorized", "uncategorised", "other", "others", "misc", "unknown",
+        "fara categorie", "fără categorie", "necategorisate", "necategorizate",
+    )
+}
+
+private fun String.containsAny(vararg candidates: String): Boolean =
+    candidates.any { candidate -> contains(candidate) }
+
 
 private fun parseExtInf(line: String): M3uInfo {
     val name = line.substringAfter(',', missingDelimiterValue = "")

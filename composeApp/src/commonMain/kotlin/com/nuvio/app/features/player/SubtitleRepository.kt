@@ -46,7 +46,15 @@ object SubtitleRepository {
 
             _loadingProgress.value = SubtitleLoadingProgress(total = requests.size)
             loadAddonSubtitles(requests) { request, subtitles ->
-                _addonSubtitles.update { it + subtitles }
+                _addonSubtitles.update { existing ->
+                    (existing + subtitles).sortedWith(
+                        compareBy<AddonSubtitle>(
+                            { subtitle -> if (subtitleLanguageKey(subtitle.language) == "ro") 0 else 1 },
+                            { subtitle -> subtitle.addonName.orEmpty().lowercase() },
+                            { subtitle -> subtitle.display.lowercase() },
+                        ),
+                    )
+                }
                 _loadingProgress.update { progress ->
                     progress?.copy(completed = progress.completed + 1, addonName = request.addonName)
                 }

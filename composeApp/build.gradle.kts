@@ -438,6 +438,8 @@ kotlin {
                 implementation(libs.androidx.media3.decoder)
                 implementation(libs.androidx.media3.session)
                 implementation(libs.androidx.media3.common)
+                implementation("com.google.android.gms:play-services-cast-framework:22.3.1")
+                implementation("androidx.mediarouter:mediarouter:1.8.1")
                 implementation(libs.androidx.media3.container)
                 implementation(libs.androidx.media3.extractor)
                 implementation(libs.mpv.android.lib)

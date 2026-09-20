@@ -340,6 +340,16 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
         exit = fadeOut(),
     ) {
         val pipAvailable = isIos && playerController?.isPictureInPictureSupported() == true
+        val afPlayCastMediaUrl = (activePlaybackSourceUrl ?: activeSourceUrl)
+            .takeIf { url ->
+                activeTorrentInfoHash.isNullOrBlank() &&
+                    activeSourceAudioUrl.isNullOrBlank() &&
+                    (url.startsWith("http://") || url.startsWith("https://"))
+            }
+        val afPlayCastSubtitle = selectedAddonSubtitle
+            ?: addonSubtitles.firstOrNull { subtitle ->
+                subtitleLanguageKey(subtitle.language) == "ro"
+            }
         PlayerControlsShell(
             title = title,
             streamTitle = activeStreamTitle,
@@ -435,6 +445,13 @@ private fun PlayerScreenRuntime.RenderPlayerControls(displayedPositionMs: Long, 
             onQualityClick = {
                 openQualityPanel()
             },
+            castMediaUrl = afPlayCastMediaUrl,
+            castTitle = title,
+            castSubtitle = activeEpisodeTitle?.takeIf { it.isNotBlank() } ?: activeStreamTitle,
+            castPositionMs = playbackSnapshot.positionMs,
+            castSubtitleUrl = afPlayCastSubtitle?.url,
+            castSubtitleLanguage = afPlayCastSubtitle?.language ?: "ro",
+            castEnabled = afPlayCastMediaUrl != null,
             onOpenInExternalPlayer = args.onOpenInExternalPlayer?.let { openExternal ->
                 {
                     val loadedSubtitles = addonSubtitles

@@ -21,15 +21,37 @@ object StreamAutoPlaySelector {
             group.addonId.startsWith("debrid:") ||
                 group.streams.any { stream -> stream.isAddonDebridCandidate && stream.isDirectDebridStream }
         }
-        if (installedOrder.isEmpty()) return directDebridEntries + remainingEntries
 
-        val (addonEntries, pluginEntries) = remainingEntries.partition { group ->
-            group.addonName in addonRankByName
+        val (addonEntries, pluginEntries) = if (installedOrder.isEmpty()) {
+            emptyList<AddonStreamGroup>() to remainingEntries
+        } else {
+            remainingEntries.partition { group -> group.addonName in addonRankByName }
         }
+
         val orderedAddons = addonEntries.sortedBy { group ->
-            addonRankByName.getValue(group.addonName)
+            addonRankByName[group.addonName] ?: Int.MAX_VALUE
         }
-        return directDebridEntries + orderedAddons + pluginEntries
+        val prioritizedPlugins = pluginEntries
+            .withIndex()
+            .sortedWith(
+                compareBy<IndexedValue<AddonStreamGroup>>(
+                    { indexed -> afPlayPluginPriority(indexed.value) },
+                    { indexed -> indexed.index },
+                ),
+            )
+            .map { indexed -> indexed.value }
+
+        return prioritizedPlugins + directDebridEntries + orderedAddons
+    }
+
+    private fun afPlayPluginPriority(group: AddonStreamGroup): Int {
+        val key = "${group.addonName}|${group.addonId}".lowercase()
+        return when {
+            "all-in-one-nuvio" in key || "nuvioplugin" in key -> 0
+            "cynex" in key -> 1
+            "niakvio" in key || "niak" in key -> 2
+            else -> 100
+        }
     }
 
     fun selectAutoPlayStream(

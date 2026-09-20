@@ -1,6 +1,6 @@
 {
   "format": "afplay-preset",
-  "version": 3,
+  "version": 4,
   "preferences": {
     "nuvio_theme_settings": {
       "selected_app_language": {
@@ -27,49 +27,119 @@
       }
     },
     "nuvio_player_settings": {
-      "resize_mode_1": {
-        "type": "string",
-        "value": "Zoom"
+      "subtitle_bottom_offset_1": {
+        "type": "int",
+        "value": 20
       },
       "preferred_audio_language_1": {
         "type": "string",
-        "value": "default"
+        "value": "device"
       },
       "use_legacy_player_layout_1": {
         "type": "boolean",
         "value": true
       },
-      "preferred_subtitle_language_1": {
+      "subtitle_bold_1": {
+        "type": "boolean",
+        "value": false
+      },
+      "subtitle_background_color_1": {
         "type": "string",
-        "value": "ro"
+        "value": "#00000000"
+      },
+      "subtitle_outline_enabled_1": {
+        "type": "boolean",
+        "value": true
+      },
+      "subtitle_use_forced_subtitles_1": {
+        "type": "boolean",
+        "value": false
+      },
+      "subtitle_outline_color_1": {
+        "type": "string",
+        "value": "#FF000000"
+      },
+      "subtitle_show_only_preferred_languages_1": {
+        "type": "boolean",
+        "value": false
+      },
+      "subtitle_text_color_1": {
+        "type": "string",
+        "value": "#FFFFFFFF"
+      },
+      "subtitle_font_size_sp_1": {
+        "type": "int",
+        "value": 18
+      },
+      "map_dv7_to_hevc_1": {
+        "type": "boolean",
+        "value": true
+      },
+      "tunneling_enabled_1": {
+        "type": "boolean",
+        "value": true
+      },
+      "playback_brightness_1": {
+        "type": "float",
+        "value": 0.03855566307902336
+      },
+      "show_parental_guide_1": {
+        "type": "boolean",
+        "value": true
+      },
+      "stream_auto_play_reuse_binge_group_1": {
+        "type": "boolean",
+        "value": true
       },
       "android_playback_engine_1": {
         "type": "string",
         "value": "ExoPlayer"
       },
-      "map_dv7_to_hevc_1": {
+      "resize_mode_1": {
+        "type": "string",
+        "value": "Zoom"
+      },
+      "preferred_subtitle_language_1": {
+        "type": "string",
+        "value": "ro"
+      },
+      "subtitle_outline_width_1": {
+        "type": "int",
+        "value": 2
+      },
+      "subtitle_strip_sdh_1": {
         "type": "boolean",
-        "value": true
+        "value": false
       }
     },
     "nuvio_addons": {
       "installed_manifest_urls_1": {
         "type": "string",
-        "value": "https:\/\/opensubtitles-v3.strem.io\/manifest.json\nhttps:\/\/opensubtitlesv3-pro.dexter21767.com\/manifest.json\nhttps:\/\/2ecbbd610840-opensubtitles.baby-beamup.club\/manifest.json\nhttps:\/\/subdl.strem.top\/manifest.json\nhttps:\/\/v3-cinemeta.strem.io\/manifest.json\nhttps:\/\/94c8cb9f702d-tmdb-addon.baby-beamup.club\/manifest.json\nhttps:\/\/torrentio.strem.fun\/manifest.json\nhttps:\/\/thepiratebay-plus.strem.fun\/manifest.json\nhttps:\/\/torrentio.strem.fun\/language=romanian,italian\/manifest.json\nhttps:\/\/torrentio.strem.fun\/language=romanian,italian%7Cqualityfilter=1080p,720p,nonthreed,dolbyvision,brremux,hdrall,dolbyvisionwithhdr,other,scr,cam,4k,threed\/manifest.json"
+        "value": "https://opensubtitles-v3.strem.io/manifest.json\nhttps://opensubtitlesv3-pro.dexter21767.com/manifest.json\nhttps://2ecbbd610840-opensubtitles.baby-beamup.club/manifest.json\nhttps://subdl.strem.top/manifest.json\nhttps://v3-cinemeta.strem.io/manifest.json\nhttps://94c8cb9f702d-tmdb-addon.baby-beamup.club/manifest.json\nhttps://torrentio.strem.fun/manifest.json\nhttps://thepiratebay-plus.strem.fun/manifest.json\nhttps://torrentio.strem.fun/language=romanian,italian/manifest.json"
       },
       "installed_manifest_enabled_states_1": {
         "type": "string",
-        "value": "https:\/\/opensubtitles-v3.strem.io\/manifest.json\ttrue\nhttps:\/\/opensubtitlesv3-pro.dexter21767.com\/manifest.json\ttrue\nhttps:\/\/2ecbbd610840-opensubtitles.baby-beamup.club\/manifest.json\ttrue\nhttps:\/\/subdl.strem.top\/manifest.json\ttrue\nhttps:\/\/v3-cinemeta.strem.io\/manifest.json\ttrue\nhttps:\/\/94c8cb9f702d-tmdb-addon.baby-beamup.club\/manifest.json\ttrue\nhttps:\/\/torrentio.strem.fun\/manifest.json\ttrue\nhttps:\/\/thepiratebay-plus.strem.fun\/manifest.json\ttrue\nhttps:\/\/torrentio.strem.fun\/language=romanian,italian\/manifest.json\ttrue\nhttps:\/\/torrentio.strem.fun\/language=romanian,italian%7Cqualityfilter=1080p,720p,nonthreed,dolbyvision,brremux,hdrall,dolbyvisionwithhdr,other,scr,cam,4k,threed\/manifest.json\ttrue"
+        "value": "https://opensubtitles-v3.strem.io/manifest.json\ttrue\nhttps://opensubtitlesv3-pro.dexter21767.com/manifest.json\ttrue\nhttps://2ecbbd610840-opensubtitles.baby-beamup.club/manifest.json\ttrue\nhttps://subdl.strem.top/manifest.json\ttrue\nhttps://v3-cinemeta.strem.io/manifest.json\ttrue\nhttps://94c8cb9f702d-tmdb-addon.baby-beamup.club/manifest.json\ttrue\nhttps://torrentio.strem.fun/manifest.json\ttrue\nhttps://thepiratebay-plus.strem.fun/manifest.json\ttrue\nhttps://torrentio.strem.fun/language=romanian,italian/manifest.json\ttrue"
       }
     },
     "nuvio_live_tv": {
       "playlist_url_1": {
         "type": "string",
-        "value": "https:\/\/acasatv.co\/zxy.json"
+        "value": "https://acasatv.co/zxy.json"
+      },
+      "last_watched_channel_id_1": {
+        "type": "string",
+        "value": "563"
       },
       "playlists_blob_1": {
         "type": "string",
-        "value": "playlist:ea7d64b4:0\u001ftv\u001fUrl\u001fhttps:\/\/acasatv.co\/zxy.json\u001ftrue"
+        "value": "playlist:ea7d64b4:0\u001ftv\u001fUrl\u001fhttps://acasatv.co/zxy.json\u001ftrue"
+      }
+    },
+    "nuvio_plugins": {
+      "plugins_state_1": {
+        "type": "string",
+        "value": "{\"pluginsEnabled\":true,\"groupStreamsByRepository\":true,\"repositories\":[{\"manifestUrl\":\"https://raw.githubusercontent.com/NuvioPlugin/All-in-One-Nuvio/refs/heads/main/manifest.json\",\"name\":\"All-in-One-Nuvio\",\"description\":null,\"version\":null,\"scraperCount\":0,\"lastUpdated\":0},{\"manifestUrl\":\"https://cynex.acasatv.co/manifest.json\",\"name\":\"All-in-One-Cynex\",\"description\":null,\"version\":null,\"scraperCount\":0,\"lastUpdated\":0},{\"manifestUrl\":\"https://raw.githubusercontent.com/niakw/Niakvio/refs/heads/main/manifest.json\",\"name\":\"NiakVIO\",\"description\":null,\"version\":null,\"scraperCount\":0,\"lastUpdated\":0}],\"scrapers\":[]}"
       }
     }
   }

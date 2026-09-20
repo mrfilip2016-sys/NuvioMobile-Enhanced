@@ -325,6 +325,18 @@ fun LiveTvScreen(
                         )
                     }
 
+                    item(key = "live-tv-category-cards") {
+                        LiveTvCategoryCardsRow(
+                            channels = uiState.channels,
+                            selectedCategoryName = selectedCategoryName,
+                            uncategorizedGroupName = uncategorizedLabel,
+                            onCategorySelected = { category ->
+                                filterMode = LiveTvChannelFilterMode.Category
+                                selectedCategoryName = category
+                            },
+                        )
+                    }
+
                     if (visibleChannels.isEmpty()) {
                         item {
                             HomeEmptyStateCard(
@@ -700,6 +712,85 @@ private fun LiveTvRecentChannelCard(
         }
     }
 }
+
+@Composable
+private fun LiveTvCategoryCardsRow(
+    channels: List<LiveTvChannel>,
+    selectedCategoryName: String?,
+    uncategorizedGroupName: String,
+    onCategorySelected: (String) -> Unit,
+) {
+    val tokens = MaterialTheme.nuvio
+    val categoryNames = remember(channels, uncategorizedGroupName) {
+        channels
+            .map { channel -> categoryNameForChannel(channel, uncategorizedGroupName) }
+            .distinctBy { it.lowercase() }
+            .sortedWith(compareBy<String> { liveTvCategorySortIndex(it) }.thenBy { it.lowercase() })
+    }
+    if (categoryNames.isEmpty()) return
+
+    Row(
+        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        categoryNames.forEach { category ->
+            val count = channels.count { channel ->
+                categoryNameForChannel(channel, uncategorizedGroupName).equals(category, ignoreCase = true)
+            }
+            val selected = selectedCategoryName?.equals(category, ignoreCase = true) == true
+            Surface(
+                modifier = Modifier.width(148.dp).height(84.dp),
+                onClick = { onCategorySelected(category) },
+                color = if (selected) tokens.colors.overlaySelected else tokens.colors.surface,
+                shape = tokens.shapes.card,
+                border = BorderStroke(1.dp, if (selected) tokens.colors.accent else tokens.colors.borderSubtle),
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(12.dp),
+                    verticalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Tv,
+                        contentDescription = null,
+                        tint = if (selected) tokens.colors.accent else tokens.colors.textMuted,
+                        modifier = Modifier.size(22.dp),
+                    )
+                    Column {
+                        Text(
+                            text = category,
+                            style = MaterialTheme.typography.titleSmall,
+                            color = tokens.colors.textPrimary,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = "$count canale",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = tokens.colors.textMuted,
+                            maxLines = 1,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun liveTvCategorySortIndex(category: String): Int =
+    when (category.lowercase()) {
+        "general" -> 0
+        "știri", "stiri" -> 1
+        "sport" -> 2
+        "filme & seriale" -> 3
+        "copii" -> 4
+        "documentare" -> 5
+        "muzică", "muzica" -> 6
+        "lifestyle" -> 7
+        "religie" -> 8
+        "teleshopping" -> 9
+        else -> 50
+    }
 
 private fun LazyListScope.liveTvChannelGrid(
     channels: List<LiveTvChannel>,

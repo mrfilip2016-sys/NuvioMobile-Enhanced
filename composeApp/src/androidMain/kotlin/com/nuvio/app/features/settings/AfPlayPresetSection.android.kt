@@ -97,7 +97,7 @@ internal actual fun AfPlayPresetSection(isTablet: Boolean) {
 }
 
 internal object AfPlayPresetCodec {
-    private const val PRESET_VERSION = 3
+    private const val PRESET_VERSION = 4
 
     private val preferenceFiles = listOf(
         "nuvio_theme_settings",
@@ -110,6 +110,7 @@ internal object AfPlayPresetCodec {
         "nuvio_discover_selection",
         "nuvio_addons",
         "nuvio_live_tv",
+        "nuvio_plugins",
     )
 
     private val deniedKeyParts = listOf(
@@ -226,6 +227,10 @@ internal object AfPlayPresetCodec {
             ) {
                 return raw
             }
+        }
+
+        if (prefsName == "nuvio_plugins") {
+            return if (key.startsWith("plugins_state")) raw else null
         }
 
         return when (raw) {

@@ -126,6 +126,13 @@ internal fun PlayerControlsShell(
     qualityLabel: String? = null,
     onQualityClick: (() -> Unit)? = null,
     onOpenInExternalPlayer: (() -> Unit)? = null,
+    castMediaUrl: String? = null,
+    castTitle: String = title,
+    castSubtitle: String? = null,
+    castPositionMs: Long = 0L,
+    castSubtitleUrl: String? = null,
+    castSubtitleLanguage: String? = null,
+    castEnabled: Boolean = true,
     onSubmitIntroClick: (() -> Unit)? = null,
     parentalWarnings: List<ParentalWarning> = emptyList(),
     showParentalGuide: Boolean = false,
@@ -198,6 +205,13 @@ internal fun PlayerControlsShell(
                     onPictureInPictureClick = onPictureInPictureClick,
                     onInfoClick = onInfoClick,
                     onOpenInExternalPlayer = onOpenInExternalPlayer,
+                    castMediaUrl = castMediaUrl,
+                    castTitle = castTitle,
+                    castSubtitle = castSubtitle,
+                    castPositionMs = castPositionMs,
+                    castSubtitleUrl = castSubtitleUrl,
+                    castSubtitleLanguage = castSubtitleLanguage,
+                    castEnabled = castEnabled,
                     onBack = onBack,
                     modifier = Modifier
                         .align(Alignment.TopStart)
@@ -360,6 +374,13 @@ private fun PlayerHeader(
     onPictureInPictureClick: (() -> Unit)?,
     onInfoClick: (() -> Unit)?,
     onOpenInExternalPlayer: (() -> Unit)?,
+    castMediaUrl: String?,
+    castTitle: String,
+    castSubtitle: String?,
+    castPositionMs: Long,
+    castSubtitleUrl: String?,
+    castSubtitleLanguage: String?,
+    castEnabled: Boolean,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -457,6 +478,18 @@ private fun PlayerHeader(
                             buttonSize = metrics.headerIconSize + 16.dp,
                             iconSize = metrics.headerIconSize,
                             onClick = onSubmitIntroClick,
+                        )
+                    }
+                    if (!castMediaUrl.isNullOrBlank() && castEnabled) {
+                        AfPlayCastButton(
+                            mediaUrl = castMediaUrl,
+                            title = castTitle,
+                            subtitle = castSubtitle,
+                            positionMs = castPositionMs,
+                            subtitleUrl = castSubtitleUrl,
+                            subtitleLanguage = castSubtitleLanguage,
+                            enabled = castEnabled,
+                            buttonSize = metrics.headerIconSize + 16.dp,
                         )
                     }
                     if (onOpenInExternalPlayer != null) {
