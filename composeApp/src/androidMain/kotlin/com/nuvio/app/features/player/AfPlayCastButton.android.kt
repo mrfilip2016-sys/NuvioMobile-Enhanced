@@ -24,7 +24,7 @@ import com.google.android.gms.cast.framework.CastSession
 import com.google.android.gms.cast.framework.OptionsProvider
 import com.google.android.gms.cast.framework.SessionManagerListener
 import com.google.android.gms.cast.framework.SessionProvider
-import com.google.android.gms.cast.framework.CastButtonFactory
+import com.google.android.gms.cast.framework.media.widget.CastButtonFactory
 
 class AfPlayCastOptionsProvider : OptionsProvider {
     override fun getCastOptions(context: Context): CastOptions =
