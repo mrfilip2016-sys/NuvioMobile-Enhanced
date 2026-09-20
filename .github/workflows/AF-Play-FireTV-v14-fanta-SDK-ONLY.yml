@@ -1,0 +1,368 @@
+name: AF Play Fire TV v14 - SDK only
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: ''
+
+      - name: Install Android platform and build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Create AF Play Fire TV source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/java/app/afplay/firetv
+
+          cat > AndroidManifest.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+              <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+              <uses-feature android:name="android.software.leanback" android:required="false" />
+
+              <application
+                  android:allowBackup="true"
+                  android:hardwareAccelerated="true"
+                  android:label="AF Play"
+                  android:usesCleartextTraffic="true"
+                  android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+                  <activity
+                      android:name="app.afplay.firetv.MainActivity"
+                      android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
+                      android:exported="true"
+                      android:screenOrientation="landscape"
+                      android:windowSoftInputMode="adjustNothing">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                          <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          cat > app/src/main/java/app/afplay/firetv/MainActivity.java <<'EOF'
+          package app.afplay.firetv;
+
+          import android.app.Activity;
+          import android.content.ActivityNotFoundException;
+          import android.content.Intent;
+          import android.graphics.Color;
+          import android.net.Uri;
+          import android.os.Bundle;
+          import android.view.KeyEvent;
+          import android.view.View;
+          import android.view.ViewGroup;
+          import android.webkit.CookieManager;
+          import android.webkit.ValueCallback;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebResourceRequest;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import android.widget.FrameLayout;
+
+          public class MainActivity extends Activity {
+              private static final String HOME = "https://fanta.free.nf/";
+              private static final int FILE_CHOOSER = 9001;
+
+              private FrameLayout root;
+              private WebView webView;
+              private View customView;
+              private WebChromeClient.CustomViewCallback customViewCallback;
+              private ValueCallback<Uri[]> fileCallback;
+
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  enterImmersive();
+
+                  root = new FrameLayout(this);
+                  root.setBackgroundColor(Color.BLACK);
+                  webView = new WebView(this);
+                  root.addView(webView, new FrameLayout.LayoutParams(
+                      ViewGroup.LayoutParams.MATCH_PARENT,
+                      ViewGroup.LayoutParams.MATCH_PARENT
+                  ));
+                  setContentView(root);
+
+                  WebSettings s = webView.getSettings();
+                  s.setJavaScriptEnabled(true);
+                  s.setDomStorageEnabled(true);
+                  s.setDatabaseEnabled(true);
+                  s.setMediaPlaybackRequiresUserGesture(false);
+                  s.setAllowContentAccess(true);
+                  s.setAllowFileAccess(true);
+                  s.setLoadsImagesAutomatically(true);
+                  s.setUseWideViewPort(true);
+                  s.setLoadWithOverviewMode(false);
+                  s.setSupportZoom(false);
+                  s.setBuiltInZoomControls(false);
+                  s.setDisplayZoomControls(false);
+                  s.setTextZoom(100);
+                  s.setCacheMode(WebSettings.LOAD_DEFAULT);
+                  if (android.os.Build.VERSION.SDK_INT >= 21) {
+                      s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+                  }
+                  s.setUserAgentString(s.getUserAgentString() + " AFPlayFireTV/14");
+
+                  CookieManager cm = CookieManager.getInstance();
+                  cm.setAcceptCookie(true);
+                  if (android.os.Build.VERSION.SDK_INT >= 21) {
+                      cm.setAcceptThirdPartyCookies(webView, true);
+                  }
+
+                  webView.setBackgroundColor(Color.BLACK);
+                  webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+                  webView.setFocusable(true);
+                  webView.setFocusableInTouchMode(true);
+
+                  webView.setWebViewClient(new WebViewClient() {
+                      @Override
+                      public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                          return handleUrl(request.getUrl().toString());
+                      }
+
+                      @Override
+                      public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                          return handleUrl(url);
+                      }
+
+                      @Override
+                      public void onPageFinished(WebView view, String url) {
+                          super.onPageFinished(view, url);
+                          injectTvNavigation();
+                          view.requestFocus();
+                      }
+                  });
+
+                  webView.setWebChromeClient(new WebChromeClient() {
+                      @Override
+                      public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, WebChromeClient.FileChooserParams params) {
+                          if (fileCallback != null) fileCallback.onReceiveValue(null);
+                          fileCallback = callback;
+                          Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                          i.addCategory(Intent.CATEGORY_OPENABLE);
+                          i.setType("*/*");
+                          i.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
+                              "application/json",
+                              "application/vnd.apple.mpegurl",
+                              "application/x-mpegURL",
+                              "audio/mpegurl",
+                              "audio/x-mpegurl",
+                              "text/plain"
+                          });
+                          try {
+                              startActivityForResult(i, FILE_CHOOSER);
+                              return true;
+                          } catch (ActivityNotFoundException e) {
+                              fileCallback = null;
+                              return false;
+                          }
+                      }
+
+                      @Override
+                      public void onShowCustomView(View view, CustomViewCallback callback) {
+                          if (customView != null) {
+                              callback.onCustomViewHidden();
+                              return;
+                          }
+                          customView = view;
+                          customViewCallback = callback;
+                          webView.setVisibility(View.GONE);
+                          root.addView(customView, new FrameLayout.LayoutParams(
+                              ViewGroup.LayoutParams.MATCH_PARENT,
+                              ViewGroup.LayoutParams.MATCH_PARENT
+                          ));
+                          enterImmersive();
+                      }
+
+                      @Override
+                      public void onHideCustomView() {
+                          hideCustomView();
+                      }
+                  });
+
+                  if (savedInstanceState == null) webView.loadUrl(HOME);
+                  else webView.restoreState(savedInstanceState);
+              }
+
+              private void enterImmersive() {
+                  getWindow().getDecorView().setSystemUiVisibility(
+                      View.SYSTEM_UI_FLAG_FULLSCREEN |
+                      View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                      View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
+                      View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+                      View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+                      View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                  );
+              }
+
+              private boolean handleUrl(String url) {
+                  if (url == null) return false;
+                  if (url.startsWith("http://") || url.startsWith("https://")) return false;
+                  if (url.startsWith("intent:") || url.startsWith("magnet:") || url.startsWith("vlc:") || url.startsWith("stremio:") || url.startsWith("market:")) {
+                      try {
+                          Intent i = url.startsWith("intent:")
+                              ? Intent.parseUri(url, Intent.URI_INTENT_SCHEME)
+                              : new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                          startActivity(i);
+                      } catch (Exception ignored) {}
+                      return true;
+                  }
+                  return false;
+              }
+
+              private void injectTvNavigation() {
+                  String js = "(function(){" +
+                      "var m=document.querySelector('meta[name=viewport]');" +
+                      "if(!m){m=document.createElement('meta');m.name='viewport';document.head.appendChild(m);}" +
+                      "m.content='width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no';" +
+                      "if(!document.getElementById('af-tv-focus')){var st=document.createElement('style');st.id='af-tv-focus';st.textContent='a:focus,button:focus,input:focus,select:focus,[tabindex]:focus{outline:3px solid #fff!important;outline-offset:3px!important;transform:scale(1.03);z-index:9999;}';document.head.appendChild(st);}" +
+                      "if(window.__afTvNav)return;window.__afTvNav=true;" +
+                      "document.addEventListener('keydown',function(e){" +
+                      "var ks=['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'];if(ks.indexOf(e.key)<0)return;" +
+                      "var q='a[href],button,input,select,textarea,[tabindex]:not([tabindex=\"-1\"])';" +
+                      "var a=[].slice.call(document.querySelectorAll(q)).filter(function(x){var r=x.getBoundingClientRect();return r.width>1&&r.height>1&&!x.disabled;});if(!a.length)return;" +
+                      "var c=document.activeElement,cr=c&&c.getBoundingClientRect?c.getBoundingClientRect():{left:innerWidth/2,right:innerWidth/2,top:innerHeight/2,bottom:innerHeight/2};" +
+                      "var cx=(cr.left+cr.right)/2,cy=(cr.top+cr.bottom)/2,b=null,bs=1e30;" +
+                      "a.forEach(function(x){if(x===c)return;var r=x.getBoundingClientRect(),xx=(r.left+r.right)/2,yy=(r.top+r.bottom)/2,dx=xx-cx,dy=yy-cy;if(e.key==='ArrowLeft'&&dx>=0)return;if(e.key==='ArrowRight'&&dx<=0)return;if(e.key==='ArrowUp'&&dy>=0)return;if(e.key==='ArrowDown'&&dy<=0)return;var major=(e.key==='ArrowLeft'||e.key==='ArrowRight')?Math.abs(dx):Math.abs(dy),minor=(e.key==='ArrowLeft'||e.key==='ArrowRight')?Math.abs(dy):Math.abs(dx),sc=major+minor*2.2;if(sc<bs){bs=sc;b=x;}});" +
+                      "if(b){e.preventDefault();b.focus();b.scrollIntoView({block:'center',inline:'center'});}" +
+                      "},true);" +
+                      "})();";
+                  webView.evaluateJavascript(js, null);
+              }
+
+              private void hideCustomView() {
+                  if (customView == null) return;
+                  root.removeView(customView);
+                  customView = null;
+                  webView.setVisibility(View.VISIBLE);
+                  if (customViewCallback != null) customViewCallback.onCustomViewHidden();
+                  customViewCallback = null;
+                  webView.requestFocus();
+                  enterImmersive();
+              }
+
+              @Override
+              public boolean dispatchKeyEvent(KeyEvent event) {
+                  if (event.getAction() == KeyEvent.ACTION_DOWN && event.getKeyCode() == KeyEvent.KEYCODE_DPAD_CENTER) {
+                      webView.evaluateJavascript("(function(){var e=document.activeElement;if(e&&e!==document.body&&e.click)e.click();})();", null);
+                  }
+                  return super.dispatchKeyEvent(event);
+              }
+
+              @Override
+              protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+                  super.onActivityResult(requestCode, resultCode, data);
+                  if (requestCode == FILE_CHOOSER && fileCallback != null) {
+                      Uri[] result = null;
+                      if (resultCode == RESULT_OK && data != null && data.getData() != null) {
+                          result = new Uri[]{data.getData()};
+                      }
+                      fileCallback.onReceiveValue(result);
+                      fileCallback = null;
+                  }
+              }
+
+              @Override
+              protected void onSaveInstanceState(Bundle outState) {
+                  webView.saveState(outState);
+                  super.onSaveInstanceState(outState);
+              }
+
+              @Override
+              public void onBackPressed() {
+                  if (customView != null) hideCustomView();
+                  else if (webView.canGoBack()) webView.goBack();
+                  else super.onBackPressed();
+              }
+          }
+          EOF
+
+      - name: Compile and package APK without Gradle
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          PLATFORM="$SDK/platforms/android-35"
+          BT="$SDK/build-tools/35.0.0"
+          ANDROID_JAR="$PLATFORM/android.jar"
+
+          test -f "$ANDROID_JAR"
+          test -x "$BT/aapt2"
+          test -x "$BT/d8"
+          test -x "$BT/zipalign"
+          test -x "$BT/apksigner"
+
+          mkdir -p build/classes build/dex out
+
+          javac -encoding UTF-8 -source 8 -target 8 \
+            -classpath "$ANDROID_JAR" \
+            -d build/classes \
+            app/src/main/java/app/afplay/firetv/MainActivity.java
+
+          "$BT/d8" \
+            --min-api 23 \
+            --lib "$ANDROID_JAR" \
+            --output build/dex \
+            $(find build/classes -type f -name '*.class' -print)
+
+          "$BT/aapt2" link \
+            -o build/base-unsigned.apk \
+            -I "$ANDROID_JAR" \
+            --manifest AndroidManifest.xml \
+            --min-sdk-version 23 \
+            --target-sdk-version 35 \
+            --version-code 14 \
+            --version-name "14.0-firetv"
+
+          cp build/base-unsigned.apk build/with-dex.apk
+          (cd build/dex && zip -q -j ../with-dex.apk classes.dex)
+
+          "$BT/zipalign" -p -f 4 build/with-dex.apk build/aligned.apk
+
+          echo "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" | base64 -d > build/afplay.keystore
+
+          "$BT/apksigner" sign \
+            --ks build/afplay.keystore \
+            --ks-key-alias afplaytv \
+            --ks-pass pass:android \
+            --key-pass pass:android \
+            --out out/AF-Play-FireTV-v14-fanta.apk \
+            build/aligned.apk
+
+          "$BT/apksigner" verify --verbose --print-certs out/AF-Play-FireTV-v14-fanta.apk
+          "$BT/aapt2" dump badging out/AF-Play-FireTV-v14-fanta.apk | head -n 20
+          ls -lh out/AF-Play-FireTV-v14-fanta.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AF-Play-FireTV-v14-fanta
+          path: out/AF-Play-FireTV-v14-fanta.apk
+          if-no-files-found: error
