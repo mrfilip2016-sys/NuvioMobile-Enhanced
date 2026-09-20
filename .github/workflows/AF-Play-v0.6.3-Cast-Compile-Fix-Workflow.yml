@@ -1,0 +1,117 @@
+name: AF Play v0.6.3 Cast Compile Fix
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 70
+
+    steps:
+      - name: Checkout AF Play
+        uses: actions/checkout@v4
+        with:
+          ref: af-play
+          fetch-depth: 0
+
+      - name: Fix CastButtonFactory import
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILE="composeApp/src/androidMain/kotlin/com/nuvio/app/features/player/AfPlayCastButton.android.kt"
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("composeApp/src/androidMain/kotlin/com/nuvio/app/features/player/AfPlayCastButton.android.kt")
+          t = p.read_text(encoding="utf-8")
+
+          wrong = "import com.google.android.gms.cast.framework.media.widget.CastButtonFactory"
+          correct = "import com.google.android.gms.cast.framework.CastButtonFactory"
+
+          if wrong in t:
+              t = t.replace(wrong, correct, 1)
+          elif correct not in t:
+              raise SystemExit("CastButtonFactory import not found")
+
+          p.write_text(t, encoding="utf-8")
+          print("CastButtonFactory import fixed.")
+          PY
+
+          grep -F 'import com.google.android.gms.cast.framework.CastButtonFactory' "$FILE"
+
+      - name: Verify Cast dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'play-services-cast-framework:22.3.1' composeApp/build.gradle.kts
+          grep -F 'androidx.mediarouter:mediarouter:1.8.1' composeApp/build.gradle.kts
+          grep -F 'OPTIONS_PROVIDER_CLASS_NAME' androidApp/src/main/AndroidManifest.xml
+          grep -F 'AfPlayCastButton(' composeApp/src/commonMain/kotlin/com/nuvio/app/features/player/PlayerControls.kt
+          grep -F 'castMediaUrl = afPlayCastMediaUrl' composeApp/src/commonMain/kotlin/com/nuvio/app/features/player/PlayerScreenRuntimeUi.kt
+          grep -F 'MARKETING_VERSION=0.6.3' iosApp/Configuration/Version.xcconfig
+          grep -F 'CURRENT_PROJECT_VERSION=263' iosApp/Configuration/Version.xcconfig
+
+      - name: Commit Cast compile fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add composeApp/src/androidMain/kotlin/com/nuvio/app/features/player/AfPlayCastButton.android.kt
+          if ! git diff --cached --quiet; then
+            git commit -m "AF Play 0.6.3: fix CastButtonFactory import"
+            git push origin HEAD:af-play
+          fi
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Restore stable AF Play signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: af-play-debug-keystore-v1
+
+      - name: Create signing key if missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.android"
+          if [[ ! -f "$HOME/.android/debug.keystore" ]]; then
+            keytool -genkeypair               -keystore "$HOME/.android/debug.keystore"               -storepass android               -alias androiddebugkey               -keypass android               -keyalg RSA               -keysize 2048               -validity 10000               -dname "CN=AF Play Debug,O=AF Play,C=IT"
+          fi
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build AF Play v0.6.3
+        shell: bash
+        run: |
+          set -euo pipefail
+          touch local.properties
+          chmod +x gradlew
+          ./gradlew :androidApp:assembleFullDebug             -Pnuvio.android.distribution=full             -Pnuvio.app.versionName="0.6.3"             --stacktrace
+
+      - name: Collect APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          apk="$(find androidApp/build/outputs/apk/full/debug -type f -name '*arm64-v8a*.apk' | head -n 1)"
+          test -n "$apk"
+          cp "$apk" out/AF-Play-v0.6.3-arm64-v8a-debug.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AF-Play-v0.6.3-arm64
+          path: out/AF-Play-v0.6.3-arm64-v8a-debug.apk
+          if-no-files-found: error
