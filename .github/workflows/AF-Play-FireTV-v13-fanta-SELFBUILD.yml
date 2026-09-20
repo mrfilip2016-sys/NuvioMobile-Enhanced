@@ -1,0 +1,376 @@
+name: AF Play Fire TV v13 - fanta.free.nf
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Create AF Play Fire TV project
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p app/src/main/java/app/afplay/firetv
+          mkdir -p app/src/main/res/drawable
+          mkdir -p app/src/main/res/values
+
+          cat > settings.gradle.kts <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "AFPlayFireTV"
+          include(":app")
+          EOF
+
+          cat > build.gradle.kts <<'EOF'
+          plugins {
+              id("com.android.application") version "8.7.3" apply false
+          }
+          EOF
+
+          cat > app/build.gradle.kts <<'EOF'
+          plugins {
+              id("com.android.application")
+          }
+
+          android {
+              namespace = "app.afplay.firetv"
+              compileSdk = 35
+
+              defaultConfig {
+                  applicationId = "app.afplay.firetv"
+                  minSdk = 23
+                  targetSdk = 35
+                  versionCode = 13
+                  versionName = "13.0-firetv"
+              }
+
+              buildTypes {
+                  debug {
+                      isMinifyEnabled = false
+                  }
+              }
+          }
+          EOF
+
+          cat > app/src/main/res/values/strings.xml <<'EOF'
+          <resources>
+              <string name="app_name">AF Play</string>
+          </resources>
+          EOF
+
+          cat > app/src/main/res/drawable/ic_launcher.xml <<'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp"
+              android:height="108dp"
+              android:viewportWidth="108"
+              android:viewportHeight="108">
+              <path android:fillColor="#0B0B10" android:pathData="M0,0h108v108h-108z"/>
+              <path android:fillColor="#8A2BE2" android:pathData="M28,24h52c4.4,0 8,3.6 8,8v44c0,4.4 -3.6,8 -8,8h-52c-4.4,0 -8,-3.6 -8,-8v-44c0,-4.4 3.6,-8 8,-8z"/>
+              <path android:fillColor="#FFFFFF" android:pathData="M47,40l24,14 -24,14z"/>
+          </vector>
+          EOF
+
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+              <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+              <uses-feature android:name="android.software.leanback" android:required="false" />
+
+              <application
+                  android:allowBackup="true"
+                  android:hardwareAccelerated="true"
+                  android:icon="@drawable/ic_launcher"
+                  android:label="AF Play"
+                  android:usesCleartextTraffic="true"
+                  android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+
+                  <activity
+                      android:name=".MainActivity"
+                      android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
+                      android:exported="true"
+                      android:screenOrientation="landscape"
+                      android:windowSoftInputMode="adjustNothing">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                          <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          cat > app/src/main/java/app/afplay/firetv/MainActivity.java <<'EOF'
+          package app.afplay.firetv;
+
+          import android.app.Activity;
+          import android.content.ActivityNotFoundException;
+          import android.content.Intent;
+          import android.graphics.Color;
+          import android.net.Uri;
+          import android.os.Bundle;
+          import android.view.KeyEvent;
+          import android.view.View;
+          import android.view.ViewGroup;
+          import android.webkit.CookieManager;
+          import android.webkit.ValueCallback;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebResourceRequest;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import android.widget.FrameLayout;
+
+          public class MainActivity extends Activity {
+              private static final String HOME = "https://fanta.free.nf/";
+              private static final int FILE_CHOOSER = 9001;
+              private WebView webView;
+              private ValueCallback<Uri[]> fileCallback;
+
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  getWindow().getDecorView().setSystemUiVisibility(
+                      View.SYSTEM_UI_FLAG_FULLSCREEN |
+                      View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                      View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY |
+                      View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+                      View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+                      View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                  );
+
+                  FrameLayout root = new FrameLayout(this);
+                  root.setBackgroundColor(Color.BLACK);
+                  webView = new WebView(this);
+                  root.addView(webView, new FrameLayout.LayoutParams(
+                      ViewGroup.LayoutParams.MATCH_PARENT,
+                      ViewGroup.LayoutParams.MATCH_PARENT
+                  ));
+                  setContentView(root);
+
+                  WebSettings s = webView.getSettings();
+                  s.setJavaScriptEnabled(true);
+                  s.setDomStorageEnabled(true);
+                  s.setDatabaseEnabled(true);
+                  s.setMediaPlaybackRequiresUserGesture(false);
+                  s.setAllowContentAccess(true);
+                  s.setAllowFileAccess(true);
+                  s.setLoadsImagesAutomatically(true);
+                  s.setUseWideViewPort(true);
+                  s.setLoadWithOverviewMode(true);
+                  s.setSupportZoom(false);
+                  s.setBuiltInZoomControls(false);
+                  s.setDisplayZoomControls(false);
+                  s.setTextZoom(100);
+                  s.setCacheMode(WebSettings.LOAD_DEFAULT);
+                  if (android.os.Build.VERSION.SDK_INT >= 21) {
+                      s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+                  }
+                  String ua = s.getUserAgentString();
+                  s.setUserAgentString(ua + " AFPlayTV/13 FireTV");
+
+                  CookieManager cm = CookieManager.getInstance();
+                  cm.setAcceptCookie(true);
+                  if (android.os.Build.VERSION.SDK_INT >= 21) {
+                      cm.setAcceptThirdPartyCookies(webView, true);
+                  }
+
+                  webView.setBackgroundColor(Color.BLACK);
+                  webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
+                  webView.setFocusable(true);
+                  webView.setFocusableInTouchMode(true);
+
+                  webView.setWebViewClient(new WebViewClient() {
+                      @Override
+                      public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                          return handleExternal(request.getUrl().toString());
+                      }
+
+                      @Override
+                      public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                          return handleExternal(url);
+                      }
+
+                      @Override
+                      public void onPageFinished(WebView view, String url) {
+                          super.onPageFinished(view, url);
+                          injectTvMode();
+                          view.requestFocus();
+                      }
+                  });
+
+                  webView.setWebChromeClient(new WebChromeClient() {
+                      @Override
+                      public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> callback, FileChooserParams params) {
+                          if (fileCallback != null) fileCallback.onReceiveValue(null);
+                          fileCallback = callback;
+                          Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                          intent.addCategory(Intent.CATEGORY_OPENABLE);
+                          intent.setType("*/*");
+                          intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
+                              "application/json",
+                              "application/vnd.apple.mpegurl",
+                              "application/x-mpegURL",
+                              "audio/mpegurl",
+                              "audio/x-mpegurl",
+                              "text/plain"
+                          });
+                          try {
+                              startActivityForResult(intent, FILE_CHOOSER);
+                              return true;
+                          } catch (ActivityNotFoundException e) {
+                              fileCallback = null;
+                              return false;
+                          }
+                      }
+                  });
+
+                  if (savedInstanceState == null) {
+                      webView.loadUrl(HOME);
+                  } else {
+                      webView.restoreState(savedInstanceState);
+                  }
+              }
+
+              private boolean handleExternal(String url) {
+                  if (url == null) return false;
+                  if (url.startsWith("http://") || url.startsWith("https://")) return false;
+                  if (url.startsWith("intent:") || url.startsWith("magnet:") || url.startsWith("vlc:") || url.startsWith("stremio:")) {
+                      try {
+                          Intent i;
+                          if (url.startsWith("intent:")) i = Intent.parseUri(url, Intent.URI_INTENT_SCHEME);
+                          else i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                          startActivity(i);
+                      } catch (Exception ignored) {}
+                      return true;
+                  }
+                  return false;
+              }
+
+              private void injectTvMode() {
+                  String js = "(function(){" +
+                      "var m=document.querySelector('meta[name=viewport]');" +
+                      "if(!m){m=document.createElement('meta');m.name='viewport';document.head.appendChild(m);}" +
+                      "m.content='width=1280, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';" +
+                      "if(!document.getElementById('afplay-tv-css')){" +
+                      "var s=document.createElement('style');s.id='afplay-tv-css';" +
+                      "s.textContent='*:focus{outline:3px solid rgba(255,255,255,.95)!important;outline-offset:3px!important} button:focus,a:focus,[tabindex]:focus{filter:brightness(1.15)} video{object-fit:contain!important}';" +
+                      "document.head.appendChild(s);}" +
+                      "if(!window.__afTvNav){window.__afTvNav=true;document.addEventListener('keydown',function(e){" +
+                      "var keys=['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'];if(keys.indexOf(e.key)<0)return;" +
+                      "var q='a[href],button,input,select,textarea,[tabindex]:not([tabindex=\"-1\"])';" +
+                      "var els=[].slice.call(document.querySelectorAll(q)).filter(function(x){var r=x.getBoundingClientRect();return r.width>0&&r.height>0&&!x.disabled;});" +
+                      "if(!els.length)return;var cur=document.activeElement;var cr=cur&&cur.getBoundingClientRect?cur.getBoundingClientRect():{left:innerWidth/2,right:innerWidth/2,top:innerHeight/2,bottom:innerHeight/2,width:0,height:0};" +
+                      "var cx=(cr.left+cr.right)/2,cy=(cr.top+cr.bottom)/2,b=null,bs=1e12;els.forEach(function(x){if(x===cur)return;var r=x.getBoundingClientRect(),x2=(r.left+r.right)/2,y2=(r.top+r.bottom)/2,dx=x2-cx,dy=y2-cy;" +
+                      "if(e.key==='ArrowLeft'&&dx>=-2)return;if(e.key==='ArrowRight'&&dx<=2)return;if(e.key==='ArrowUp'&&dy>=-2)return;if(e.key==='ArrowDown'&&dy<=2)return;" +
+                      "var major=(e.key==='ArrowLeft'||e.key==='ArrowRight')?Math.abs(dx):Math.abs(dy),minor=(e.key==='ArrowLeft'||e.key==='ArrowRight')?Math.abs(dy):Math.abs(dx),score=major+minor*2.5;if(score<bs){bs=score;b=x;}});" +
+                      "if(b){e.preventDefault();b.focus();b.scrollIntoView({block:'center',inline:'center',behavior:'smooth'});}" +
+                      "},true);}" +
+                      "})();";
+                  webView.evaluateJavascript(js, null);
+              }
+
+              @Override
+              public boolean dispatchKeyEvent(KeyEvent event) {
+                  if (event.getAction() == KeyEvent.ACTION_DOWN && event.getKeyCode() == KeyEvent.KEYCODE_MENU) {
+                      injectTvMode();
+                      return true;
+                  }
+                  return super.dispatchKeyEvent(event);
+              }
+
+              @Override
+              protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+                  super.onActivityResult(requestCode, resultCode, data);
+                  if (requestCode == FILE_CHOOSER && fileCallback != null) {
+                      Uri[] result = null;
+                      if (resultCode == RESULT_OK && data != null) {
+                          if (data.getClipData() != null) {
+                              int n = data.getClipData().getItemCount();
+                              result = new Uri[n];
+                              for (int i=0;i<n;i++) result[i] = data.getClipData().getItemAt(i).getUri();
+                          } else if (data.getData() != null) {
+                              result = new Uri[]{data.getData()};
+                          }
+                      }
+                      fileCallback.onReceiveValue(result);
+                      fileCallback = null;
+                  }
+              }
+
+              @Override
+              protected void onSaveInstanceState(Bundle outState) {
+                  webView.saveState(outState);
+                  super.onSaveInstanceState(outState);
+              }
+
+              @Override
+              public void onBackPressed() {
+                  if (webView != null && webView.canGoBack()) webView.goBack();
+                  else super.onBackPressed();
+              }
+          }
+          EOF
+
+      - name: Build APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon :app:assembleDebug --stacktrace
+
+      - name: Collect APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          APK="$(find app/build/outputs/apk/debug -type f -name '*.apk' | head -n 1)"
+          test -n "$APK"
+          cp "$APK" out/AF-Play-FireTV-v13-fanta-debug.apk
+          ls -lh out/AF-Play-FireTV-v13-fanta-debug.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: AF-Play-FireTV-v13-fanta
+          path: out/AF-Play-FireTV-v13-fanta-debug.apk
+          if-no-files-found: error
