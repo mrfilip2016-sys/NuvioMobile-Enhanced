@@ -1,0 +1,265 @@
+name: AF Play Mobile 0.6.3 FileList Test
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [enhanced]
+    paths:
+      - '.github/workflows/af-play-mobile-063-filelist-test.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: af-play-mobile-063-filelist-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build AF Play Mobile FileList Test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout AF Play 0.6.3
+        uses: actions/checkout@v6
+        with:
+          ref: af-play
+          fetch-depth: 0
+          submodules: false
+
+      - name: Fetch working portrait workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin enhanced:refs/remotes/origin/enhanced --force
+          git show origin/enhanced:.github/workflows/af-play-mobile-063-portrait-activation.yml > "$RUNNER_TEMP/portrait.yml"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Restore stable signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: af-play-debug-keystore-v1
+
+      - name: Create signing key if missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.android"
+          if [[ ! -f "$HOME/.android/debug.keystore" ]]; then
+            keytool -genkeypair -keystore "$HOME/.android/debug.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=AF Play Debug,O=AF Play,C=IT"
+          fi
+
+      - name: Apply working portrait and activation patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, os, re
+          text = (Path(os.environ["RUNNER_TEMP"]) / "portrait.yml").read_text(encoding="utf-8")
+          m = re.search(r'''cat > "\$RUNNER_TEMP/afplay_portrait_patch\.b64" <<'PATCH64'\n(.*?)\n\s*PATCH64''', text, flags=re.S)
+          if not m:
+              raise SystemExit("Portrait patch not found")
+          data = base64.b64decode("".join(x.strip() for x in m.group(1).splitlines()), validate=True)
+          out = Path(os.environ["RUNNER_TEMP"]) / "portrait_patch.py"
+          out.write_bytes(data)
+          compile(data.decode("utf-8"), str(out), "exec")
+          PY
+          python3 "$RUNNER_TEMP/portrait_patch.py"
+
+      - name: Add FileList test panel
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/filelist_patch.b64" <<'PATCH64'
+          ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCmltcG9ydCByZQoKUk9PVCA9IFBhdGgoIi4iKQoKY29t
+          bW9uID0gUk9PVCAvICJjb21wb3NlQXBwL3NyYy9jb21tb25NYWluL2tvdGxpbi9jb20vbnV2aW8v
+          YXBwL2ZlYXR1cmVzL3NldHRpbmdzL0ZpbGVMaXN0VHJpYWxTZWN0aW9uLmt0Igpjb21tb24ud3Jp
+          dGVfdGV4dCgiIiJwYWNrYWdlIGNvbS5udXZpby5hcHAuZmVhdHVyZXMuc2V0dGluZ3MKCmltcG9y
+          dCBhbmRyb2lkeC5jb21wb3NlLnJ1bnRpbWUuQ29tcG9zYWJsZQoKQENvbXBvc2FibGUKaW50ZXJu
+          YWwgZXhwZWN0IGZ1biBGaWxlTGlzdFRyaWFsU2VjdGlvbihpc1RhYmxldDogQm9vbGVhbikKIiIi
+          LCBlbmNvZGluZz0idXRmLTgiKQoKYW5kcm9pZCA9IFJPT1QgLyAiY29tcG9zZUFwcC9zcmMvYW5k
+          cm9pZE1haW4va290bGluL2NvbS9udXZpby9hcHAvZmVhdHVyZXMvc2V0dGluZ3MvRmlsZUxpc3RU
+          cmlhbFNlY3Rpb24uYW5kcm9pZC5rdCIKYW5kcm9pZC53cml0ZV90ZXh0KHIiIiJwYWNrYWdlIGNv
+          bS5udXZpby5hcHAuZmVhdHVyZXMuc2V0dGluZ3MKCmltcG9ydCBhbmRyb2lkLmNvbnRlbnQuQ29u
+          dGV4dAppbXBvcnQgYW5kcm9pZC51dGlsLkJhc2U2NAppbXBvcnQgYW5kcm9pZHguY29tcG9zZS5m
+          b3VuZGF0aW9uLmxheW91dC5BcnJhbmdlbWVudAppbXBvcnQgYW5kcm9pZHguY29tcG9zZS5mb3Vu
+          ZGF0aW9uLmxheW91dC5Db2x1bW4KaW1wb3J0IGFuZHJvaWR4LmNvbXBvc2UuZm91bmRhdGlvbi5s
+          YXlvdXQuUm93CmltcG9ydCBhbmRyb2lkeC5jb21wb3NlLmZvdW5kYXRpb24ubGF5b3V0LmZpbGxN
+          YXhXaWR0aAppbXBvcnQgYW5kcm9pZHguY29tcG9zZS5mb3VuZGF0aW9uLmxheW91dC5wYWRkaW5n
+          CmltcG9ydCBhbmRyb2lkeC5jb21wb3NlLm1hdGVyaWFsMy5CdXR0b24KaW1wb3J0IGFuZHJvaWR4
+          LmNvbXBvc2UubWF0ZXJpYWwzLk1hdGVyaWFsVGhlbWUKaW1wb3J0IGFuZHJvaWR4LmNvbXBvc2Uu
+          bWF0ZXJpYWwzLk91dGxpbmVkQnV0dG9uCmltcG9ydCBhbmRyb2lkeC5jb21wb3NlLm1hdGVyaWFs
+          My5PdXRsaW5lZFRleHRGaWVsZAppbXBvcnQgYW5kcm9pZHguY29tcG9zZS5tYXRlcmlhbDMuVGV4
+          dAppbXBvcnQgYW5kcm9pZHguY29tcG9zZS5ydW50aW1lLkNvbXBvc2FibGUKaW1wb3J0IGFuZHJv
+          aWR4LmNvbXBvc2UucnVudGltZS5nZXRWYWx1ZQppbXBvcnQgYW5kcm9pZHguY29tcG9zZS5ydW50
+          aW1lLm11dGFibGVTdGF0ZU9mCmltcG9ydCBhbmRyb2lkeC5jb21wb3NlLnJ1bnRpbWUucmVtZW1i
+          ZXIKaW1wb3J0IGFuZHJvaWR4LmNvbXBvc2UucnVudGltZS5yZW1lbWJlckNvcm91dGluZVNjb3Bl
+          CmltcG9ydCBhbmRyb2lkeC5jb21wb3NlLnJ1bnRpbWUuc2V0VmFsdWUKaW1wb3J0IGFuZHJvaWR4
+          LmNvbXBvc2UudWkuTW9kaWZpZXIKaW1wb3J0IGFuZHJvaWR4LmNvbXBvc2UudWkucGxhdGZvcm0u
+          TG9jYWxDb250ZXh0CmltcG9ydCBhbmRyb2lkeC5jb21wb3NlLnVpLnVuaXQuZHAKaW1wb3J0IGtv
+          dGxpbnguY29yb3V0aW5lcy5EaXNwYXRjaGVycwppbXBvcnQga290bGlueC5jb3JvdXRpbmVzLmxh
+          dW5jaAppbXBvcnQga290bGlueC5jb3JvdXRpbmVzLndpdGhDb250ZXh0CmltcG9ydCBva2h0dHAz
+          Lk9rSHR0cENsaWVudAppbXBvcnQgb2todHRwMy5SZXF1ZXN0CmltcG9ydCBqYXZhLnV0aWwuY29u
+          Y3VycmVudC5UaW1lVW5pdAoKcHJpdmF0ZSBjb25zdCB2YWwgUFJFRlMgPSAiYWZwbGF5X2ZpbGVs
+          aXN0X3Rlc3QiCnByaXZhdGUgY29uc3QgdmFsIFVTRVJOQU1FID0gInVzZXJuYW1lIgpwcml2YXRl
+          IGNvbnN0IHZhbCBQQVNTS0VZID0gInBhc3NrZXkiCgpwcml2YXRlIHZhbCBjbGllbnQgPSBPa0h0
+          dHBDbGllbnQuQnVpbGRlcigpCiAgICAuY29ubmVjdFRpbWVvdXQoOCwgVGltZVVuaXQuU0VDT05E
+          UykKICAgIC5yZWFkVGltZW91dCg4LCBUaW1lVW5pdC5TRUNPTkRTKQogICAgLmJ1aWxkKCkKCkBD
+          b21wb3NhYmxlCmludGVybmFsIGFjdHVhbCBmdW4gRmlsZUxpc3RUcmlhbFNlY3Rpb24oaXNUYWJs
+          ZXQ6IEJvb2xlYW4pIHsKICAgIHZhbCBjb250ZXh0ID0gTG9jYWxDb250ZXh0LmN1cnJlbnQKICAg
+          IHZhbCBwcmVmcyA9IHJlbWVtYmVyIHsgY29udGV4dC5nZXRTaGFyZWRQcmVmZXJlbmNlcyhQUkVG
+          UywgQ29udGV4dC5NT0RFX1BSSVZBVEUpIH0KICAgIHZhbCBzY29wZSA9IHJlbWVtYmVyQ29yb3V0
+          aW5lU2NvcGUoKQogICAgdmFyIHVzZXJuYW1lIGJ5IHJlbWVtYmVyIHsgbXV0YWJsZVN0YXRlT2Yo
+          cHJlZnMuZ2V0U3RyaW5nKFVTRVJOQU1FLCAiIikub3JFbXB0eSgpKSB9CiAgICB2YXIgcGFzc2tl
+          eSBieSByZW1lbWJlciB7IG11dGFibGVTdGF0ZU9mKHByZWZzLmdldFN0cmluZyhQQVNTS0VZLCAi
+          Iikub3JFbXB0eSgpKSB9CiAgICB2YXIgYnVzeSBieSByZW1lbWJlciB7IG11dGFibGVTdGF0ZU9m
+          KGZhbHNlKSB9CiAgICB2YXIgbWVzc2FnZSBieSByZW1lbWJlciB7IG11dGFibGVTdGF0ZU9mPFN0
+          cmluZz8+KG51bGwpIH0KICAgIHZhciBzdWNjZXNzIGJ5IHJlbWVtYmVyIHsgbXV0YWJsZVN0YXRl
+          T2YoZmFsc2UpIH0KCiAgICBTZXR0aW5nc1NlY3Rpb24odGl0bGUgPSAiRmlsZUxpc3QgVGVzdCIs
+          IGlzVGFibGV0ID0gaXNUYWJsZXQpIHsKICAgICAgICBTZXR0aW5nc0dyb3VwKGlzVGFibGV0ID0g
+          aXNUYWJsZXQpIHsKICAgICAgICAgICAgQ29sdW1uKAogICAgICAgICAgICAgICAgbW9kaWZpZXIg
+          PSBNb2RpZmllci5maWxsTWF4V2lkdGgoKS5wYWRkaW5nKGlmIChpc1RhYmxldCkgMjAuZHAgZWxz
+          ZSAxNi5kcCksCiAgICAgICAgICAgICAgICB2ZXJ0aWNhbEFycmFuZ2VtZW50ID0gQXJyYW5nZW1l
+          bnQuc3BhY2VkQnkoMTIuZHApLAogICAgICAgICAgICApIHsKICAgICAgICAgICAgICAgIFRleHQo
+          CiAgICAgICAgICAgICAgICAgICAgIlRlc3QgZGUgYXV0ZW50aWZpY2FyZSBBUEkuIE51IHRyaW1p
+          dGUgcmV6dWx0YXRlIMOubiBwbGF5ZXIuIiwKICAgICAgICAgICAgICAgICAgICBzdHlsZSA9IE1h
+          dGVyaWFsVGhlbWUudHlwb2dyYXBoeS5ib2R5TWVkaXVtLAogICAgICAgICAgICAgICAgICAgIGNv
+          bG9yID0gTWF0ZXJpYWxUaGVtZS5jb2xvclNjaGVtZS5vblN1cmZhY2VWYXJpYW50LAogICAgICAg
+          ICAgICAgICAgKQogICAgICAgICAgICAgICAgT3V0bGluZWRUZXh0RmllbGQoCiAgICAgICAgICAg
+          ICAgICAgICAgdmFsdWUgPSB1c2VybmFtZSwKICAgICAgICAgICAgICAgICAgICBvblZhbHVlQ2hh
+          bmdlID0geyB1c2VybmFtZSA9IGl0LnRyaW0oKTsgbWVzc2FnZSA9IG51bGwgfSwKICAgICAgICAg
+          ICAgICAgICAgICBtb2RpZmllciA9IE1vZGlmaWVyLmZpbGxNYXhXaWR0aCgpLAogICAgICAgICAg
+          ICAgICAgICAgIGxhYmVsID0geyBUZXh0KCJVc2VybmFtZSIpIH0sCiAgICAgICAgICAgICAgICAg
+          ICAgc2luZ2xlTGluZSA9IHRydWUsCiAgICAgICAgICAgICAgICApCiAgICAgICAgICAgICAgICBT
+          ZXR0aW5nc1NlY3JldFRleHRGaWVsZCgKICAgICAgICAgICAgICAgICAgICB2YWx1ZSA9IHBhc3Nr
+          ZXksCiAgICAgICAgICAgICAgICAgICAgb25WYWx1ZUNoYW5nZSA9IHsgcGFzc2tleSA9IGl0LnRy
+          aW0oKTsgbWVzc2FnZSA9IG51bGwgfSwKICAgICAgICAgICAgICAgICAgICBsYWJlbCA9ICJQYXNz
+          a2V5IiwKICAgICAgICAgICAgICAgICAgICBtb2RpZmllciA9IE1vZGlmaWVyLmZpbGxNYXhXaWR0
+          aCgpLAogICAgICAgICAgICAgICAgKQogICAgICAgICAgICAgICAgUm93KAogICAgICAgICAgICAg
+          ICAgICAgIG1vZGlmaWVyID0gTW9kaWZpZXIuZmlsbE1heFdpZHRoKCksCiAgICAgICAgICAgICAg
+          ICAgICAgaG9yaXpvbnRhbEFycmFuZ2VtZW50ID0gQXJyYW5nZW1lbnQuc3BhY2VkQnkoMTAuZHAp
+          LAogICAgICAgICAgICAgICAgKSB7CiAgICAgICAgICAgICAgICAgICAgT3V0bGluZWRCdXR0b24o
+          CiAgICAgICAgICAgICAgICAgICAgICAgIG9uQ2xpY2sgPSB7CiAgICAgICAgICAgICAgICAgICAg
+          ICAgICAgICBwcmVmcy5lZGl0KCkucHV0U3RyaW5nKFVTRVJOQU1FLCB1c2VybmFtZSkucHV0U3Ry
+          aW5nKFBBU1NLRVksIHBhc3NrZXkpLmFwcGx5KCkKICAgICAgICAgICAgICAgICAgICAgICAgICAg
+          IHN1Y2Nlc3MgPSB0cnVlCiAgICAgICAgICAgICAgICAgICAgICAgICAgICBtZXNzYWdlID0gIlNh
+          bHZhdCBsb2NhbC4iCiAgICAgICAgICAgICAgICAgICAgICAgIH0sCiAgICAgICAgICAgICAgICAg
+          ICAgICAgIGVuYWJsZWQgPSB1c2VybmFtZS5pc05vdEJsYW5rKCkgJiYgcGFzc2tleS5pc05vdEJs
+          YW5rKCksCiAgICAgICAgICAgICAgICAgICAgICAgIG1vZGlmaWVyID0gTW9kaWZpZXIud2VpZ2h0
+          KDFmKSwKICAgICAgICAgICAgICAgICAgICApIHsgVGV4dCgiU2FsdmVhesSDIikgfQoKICAgICAg
+          ICAgICAgICAgICAgICBCdXR0b24oCiAgICAgICAgICAgICAgICAgICAgICAgIG9uQ2xpY2sgPSB7
+          CiAgICAgICAgICAgICAgICAgICAgICAgICAgICBwcmVmcy5lZGl0KCkucHV0U3RyaW5nKFVTRVJO
+          QU1FLCB1c2VybmFtZSkucHV0U3RyaW5nKFBBU1NLRVksIHBhc3NrZXkpLmFwcGx5KCkKICAgICAg
+          ICAgICAgICAgICAgICAgICAgICAgIGJ1c3kgPSB0cnVlCiAgICAgICAgICAgICAgICAgICAgICAg
+          ICAgICBtZXNzYWdlID0gbnVsbAogICAgICAgICAgICAgICAgICAgICAgICAgICAgc3VjY2VzcyA9
+          IGZhbHNlCiAgICAgICAgICAgICAgICAgICAgICAgICAgICBzY29wZS5sYXVuY2ggewogICAgICAg
+          ICAgICAgICAgICAgICAgICAgICAgICAgIHZhbCByZXN1bHQgPSB3aXRoQ29udGV4dChEaXNwYXRj
+          aGVycy5JTykgewogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICB0ZXN0Q3JlZGVu
+          dGlhbHModXNlcm5hbWUsIHBhc3NrZXkpCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+          fQogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGJ1c3kgPSBmYWxzZQogICAgICAgICAg
+          ICAgICAgICAgICAgICAgICAgICAgIHN1Y2Nlc3MgPSByZXN1bHQuZmlyc3QKICAgICAgICAgICAg
+          ICAgICAgICAgICAgICAgICAgICBtZXNzYWdlID0gcmVzdWx0LnNlY29uZAogICAgICAgICAgICAg
+          ICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgICAgICAgICB9LAogICAgICAgICAgICAg
+          ICAgICAgICAgICBlbmFibGVkID0gIWJ1c3kgJiYgdXNlcm5hbWUuaXNOb3RCbGFuaygpICYmIHBh
+          c3NrZXkuaXNOb3RCbGFuaygpLAogICAgICAgICAgICAgICAgICAgICAgICBtb2RpZmllciA9IE1v
+          ZGlmaWVyLndlaWdodCgxZiksCiAgICAgICAgICAgICAgICAgICAgKSB7IFRleHQoaWYgKGJ1c3kp
+          ICJUZXN0Li4uIiBlbHNlICJUZXN0IGNvbmV4aXVuZSIpIH0KICAgICAgICAgICAgICAgIH0KICAg
+          ICAgICAgICAgICAgIG1lc3NhZ2U/LmxldCB7CiAgICAgICAgICAgICAgICAgICAgVGV4dCgKICAg
+          ICAgICAgICAgICAgICAgICAgICAgaXQsCiAgICAgICAgICAgICAgICAgICAgICAgIHN0eWxlID0g
+          TWF0ZXJpYWxUaGVtZS50eXBvZ3JhcGh5LmJvZHlNZWRpdW0sCiAgICAgICAgICAgICAgICAgICAg
+          ICAgIGNvbG9yID0gaWYgKHN1Y2Nlc3MpIE1hdGVyaWFsVGhlbWUuY29sb3JTY2hlbWUucHJpbWFy
+          eSBlbHNlIE1hdGVyaWFsVGhlbWUuY29sb3JTY2hlbWUuZXJyb3IsCiAgICAgICAgICAgICAgICAg
+          ICAgKQogICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgVGV4dCgKICAgICAgICAgICAg
+          ICAgICAgICAiRm9sb3NlyJl0ZSBwYXNza2V5LXVsIEFQSSwgbnUgcGFyb2xhIGNvbnR1bHVpLiIs
+          CiAgICAgICAgICAgICAgICAgICAgc3R5bGUgPSBNYXRlcmlhbFRoZW1lLnR5cG9ncmFwaHkuYm9k
+          eVNtYWxsLAogICAgICAgICAgICAgICAgICAgIGNvbG9yID0gTWF0ZXJpYWxUaGVtZS5jb2xvclNj
+          aGVtZS5vblN1cmZhY2VWYXJpYW50LAogICAgICAgICAgICAgICAgKQogICAgICAgICAgICB9CiAg
+          ICAgICAgfQogICAgfQp9Cgpwcml2YXRlIGZ1biB0ZXN0Q3JlZGVudGlhbHModXNlcm5hbWU6IFN0
+          cmluZywgcGFzc2tleTogU3RyaW5nKTogUGFpcjxCb29sZWFuLCBTdHJpbmc+IHsKICAgIHJldHVy
+          biB0cnkgewogICAgICAgIHZhbCByYXcgPSAiJHVzZXJuYW1lOiRwYXNza2V5IgogICAgICAgIHZh
+          bCBhdXRoID0gQmFzZTY0LmVuY29kZVRvU3RyaW5nKHJhdy50b0J5dGVBcnJheShDaGFyc2V0cy5V
+          VEZfOCksIEJhc2U2NC5OT19XUkFQKQogICAgICAgIHZhbCByZXF1ZXN0ID0gUmVxdWVzdC5CdWls
+          ZGVyKCkKICAgICAgICAgICAgLnVybCgiaHR0cHM6Ly9maWxlbGlzdC5pby9hcGkucGhwP2FjdGlv
+          bj1zZWFyY2gtdG9ycmVudHMiKQogICAgICAgICAgICAuaGVhZGVyKCJBdXRob3JpemF0aW9uIiwg
+          IkJhc2ljICRhdXRoIikKICAgICAgICAgICAgLmhlYWRlcigiQWNjZXB0IiwgImFwcGxpY2F0aW9u
+          L2pzb24iKQogICAgICAgICAgICAuZ2V0KCkKICAgICAgICAgICAgLmJ1aWxkKCkKCiAgICAgICAg
+          Y2xpZW50Lm5ld0NhbGwocmVxdWVzdCkuZXhlY3V0ZSgpLnVzZSB7IHJlc3BvbnNlIC0+CiAgICAg
+          ICAgICAgIHdoZW4gKHJlc3BvbnNlLmNvZGUpIHsKICAgICAgICAgICAgICAgIDIwMCwgNDAwLCA0
+          MDQgLT4gdHJ1ZSB0byAiQ29uZXhpdW5lIE9LLiBBdXRlbnRpZmljYXJlYSBudSBhIGZvc3QgcmVz
+          cGluc8SDLiIKICAgICAgICAgICAgICAgIDQwMSwgNDAzIC0+IGZhbHNlIHRvICJVc2VybmFtZSBz
+          YXUgcGFzc2tleSBpbnZhbGlkLiIKICAgICAgICAgICAgICAgIDQyOSAtPiBmYWxzZSB0byAiTGlt
+          aXRhIEFQSSBhIGZvc3QgYXRpbnPEgy4iCiAgICAgICAgICAgICAgICA1MDMgLT4gZmFsc2UgdG8g
+          IlNlcnZpY2l1bCBudSBlc3RlIGRpc3BvbmliaWwgbW9tZW50YW4uIgogICAgICAgICAgICAgICAg
+          ZWxzZSAtPiBmYWxzZSB0byAiUsSDc3B1bnMgc2VydmVyOiBIVFRQICR7cmVzcG9uc2UuY29kZX0u
+          IgogICAgICAgICAgICB9CiAgICAgICAgfQogICAgfSBjYXRjaCAoZTogRXhjZXB0aW9uKSB7CiAg
+          ICAgICAgZmFsc2UgdG8gIkNvbmV4aXVuZWEgYSBlyJl1YXQ6ICR7ZS5tZXNzYWdlID86ICJlcm9h
+          cmUgZGUgcmXIm2VhIn0uIgogICAgfQp9CiIiIiwgZW5jb2Rpbmc9InV0Zi04IikKCmlwID0gUk9P
+          VCAvICJjb21wb3NlQXBwL3NyYy9jb21tb25NYWluL2tvdGxpbi9jb20vbnV2aW8vYXBwL2ZlYXR1
+          cmVzL3NldHRpbmdzL0ludGVncmF0aW9uc1NldHRpbmdzUGFnZS5rdCIKdCA9IGlwLnJlYWRfdGV4
+          dChlbmNvZGluZz0idXRmLTgiKQppZiAiRmlsZUxpc3RUcmlhbFNlY3Rpb24oaXNUYWJsZXQgPSBp
+          c1RhYmxldCkiIG5vdCBpbiB0OgogICAgcG9zID0gdC5yZmluZCgiXG59IikKICAgIGlmIHBvcyA8
+          IDA6IHJhaXNlIFN5c3RlbUV4aXQoIkludGVncmF0aW9ucyBwYWdlIGVuZCBub3QgZm91bmQiKQog
+          ICAgdCA9IHRbOnBvc10gKyAnXG4gICAgaXRlbSB7XG4gICAgICAgIEZpbGVMaXN0VHJpYWxTZWN0
+          aW9uKGlzVGFibGV0ID0gaXNUYWJsZXQpXG4gICAgfVxuJyArIHRbcG9zOl0KaXAud3JpdGVfdGV4
+          dCh0LCBlbmNvZGluZz0idXRmLTgiKQoKdnAgPSBST09UIC8gImlvc0FwcC9Db25maWd1cmF0aW9u
+          L1ZlcnNpb24ueGNjb25maWciCnYgPSB2cC5yZWFkX3RleHQoZW5jb2Rpbmc9InV0Zi04IikKaWYg
+          Ik1BUktFVElOR19WRVJTSU9OPTAuNi4zIiBub3QgaW4gdjogcmFpc2UgU3lzdGVtRXhpdCgiMC42
+          LjMgYmFzZSBub3QgZm91bmQiKQp2ID0gcmUuc3ViKHIiQ1VSUkVOVF9QUk9KRUNUX1ZFUlNJT049
+          XGQrIiwgIkNVUlJFTlRfUFJPSkVDVF9WRVJTSU9OPTI2NiIsIHYsIGNvdW50PTEpCnZwLndyaXRl
+          X3RleHQodiwgZW5jb2Rpbmc9InV0Zi04IikK
+          PATCH64
+          base64 -d "$RUNNER_TEMP/filelist_patch.b64" > "$RUNNER_TEMP/filelist_patch.py"
+          python3 -m py_compile "$RUNNER_TEMP/filelist_patch.py"
+          python3 "$RUNNER_TEMP/filelist_patch.py"
+
+      - name: Verify integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          A="composeApp/src/androidMain/kotlin/com/nuvio/app/features/settings/FileListTrialSection.android.kt"
+          C="composeApp/src/commonMain/kotlin/com/nuvio/app/features/settings/FileListTrialSection.kt"
+          I="composeApp/src/commonMain/kotlin/com/nuvio/app/features/settings/IntegrationsSettingsPage.kt"
+          test -f "$A"
+          test -f "$C"
+          grep -F 'FileList Test' "$A"
+          grep -F 'Test conexiune' "$A"
+          grep -F 'Authorization' "$A"
+          grep -F 'FileListTrialSection(isTablet = isTablet)' "$I"
+          grep -F 'CURRENT_PROJECT_VERSION=266' iosApp/Configuration/Version.xcconfig
+          chmod +x gradlew
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          touch local.properties
+          ./gradlew :androidApp:assembleFullDebug -Pnuvio.android.distribution=full -Pnuvio.app.versionName="0.6.3" --stacktrace --no-daemon
+
+      - name: Collect APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          apk="$(find androidApp/build/outputs/apk/full/debug -type f -name '*arm64-v8a*.apk' | head -n 1)"
+          test -n "$apk"
+          cp "$apk" out/AF-Play-0.6.3-FileList-Test-arm64.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: AF-Play-0.6.3-FileList-Test-arm64
+          path: out/AF-Play-0.6.3-FileList-Test-arm64.apk
+          if-no-files-found: error
+          retention-days: 14
