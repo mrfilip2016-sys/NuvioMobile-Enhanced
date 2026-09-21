@@ -1,0 +1,1021 @@
+name: AF Play Mobile 0.6.3 + FileList FINAL v2
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: af-play-mobile-063-activation-final-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build AF Play Mobile 0.6.3 + Activation + FileList v2
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout AF Play 0.6.3
+        uses: actions/checkout@v6
+        with:
+          ref: af-play
+          fetch-depth: 1
+          submodules: false
+
+      - name: Verify exact base
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'MARKETING_VERSION=0.6.3' iosApp/Configuration/Version.xcconfig
+          grep -F 'applicationId = "app.afplay.mobile"' androidApp/build.gradle.kts
+          grep -F 'media.widget.CastButtonFactory' composeApp/src/androidMain/kotlin/com/nuvio/app/features/player/AfPlayCastButton.android.kt
+          test "$(grep -c 'android:name="com.nuvio.app.launcher.AppIconDefault"' androidApp/src/main/AndroidManifest.xml)" -eq 2
+          chmod +x gradlew
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Restore stable AF Play signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: af-play-debug-keystore-v1
+
+      - name: Create signing key if missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.android"
+          if [[ ! -f "$HOME/.android/debug.keystore" ]]; then
+            keytool -genkeypair               -keystore "$HOME/.android/debug.keystore"               -storepass android               -alias androiddebugkey               -keypass android               -keyalg RSA               -keysize 2048               -validity 10000               -dname "CN=AF Play Debug,O=AF Play,C=IT"
+          fi
+
+      - name: Apply proven compile fixes + activation
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/afplay_final_patch.b64" <<'PATCH64'
+          ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCmltcG9ydCByZQoKUk9PVCA9IFBhdGgoIi4iKQoKIyAx
+          KSBGaXggdGhlIGV4YWN0IENhc3QgY29tcGlsZSByZWdyZXNzaW9uIGFscmVhZHkgcHJvdmVuIGlu
+          IHRoZSBzdWNjZXNzZnVsIDAuNi4zIHdvcmtmbG93LgpjYXN0X3BhdGggPSBST09UIC8gImNvbXBv
+          c2VBcHAvc3JjL2FuZHJvaWRNYWluL2tvdGxpbi9jb20vbnV2aW8vYXBwL2ZlYXR1cmVzL3BsYXll
+          ci9BZlBsYXlDYXN0QnV0dG9uLmFuZHJvaWQua3QiCmNhc3QgPSBjYXN0X3BhdGgucmVhZF90ZXh0
+          KGVuY29kaW5nPSJ1dGYtOCIpCndyb25nID0gImltcG9ydCBjb20uZ29vZ2xlLmFuZHJvaWQuZ21z
+          LmNhc3QuZnJhbWV3b3JrLm1lZGlhLndpZGdldC5DYXN0QnV0dG9uRmFjdG9yeSIKY29ycmVjdCA9
+          ICJpbXBvcnQgY29tLmdvb2dsZS5hbmRyb2lkLmdtcy5jYXN0LmZyYW1ld29yay5DYXN0QnV0dG9u
+          RmFjdG9yeSIKaWYgd3JvbmcgaW4gY2FzdDoKICAgIGNhc3QgPSBjYXN0LnJlcGxhY2Uod3Jvbmcs
+          IGNvcnJlY3QsIDEpCmVsaWYgY29ycmVjdCBub3QgaW4gY2FzdDoKICAgIHJhaXNlIFN5c3RlbUV4
+          aXQoIkNhc3RCdXR0b25GYWN0b3J5IGltcG9ydCBub3QgZm91bmQiKQpjYXN0X3BhdGgud3JpdGVf
+          dGV4dChjYXN0LCBlbmNvZGluZz0idXRmLTgiKQoKIyAyKSBSZW1vdmUgT05MWSB0aGUgZHVwbGlj
+          YXRlIExFQU5CQUNLIEFwcEljb25EZWZhdWx0IGFjdGl2aXR5LgptYW5pZmVzdF9wYXRoID0gUk9P
+          VCAvICJhbmRyb2lkQXBwL3NyYy9tYWluL0FuZHJvaWRNYW5pZmVzdC54bWwiCm1hbmlmZXN0ID0g
+          bWFuaWZlc3RfcGF0aC5yZWFkX3RleHQoZW5jb2Rpbmc9InV0Zi04IikKCmR1cGxpY2F0ZSA9ICIi
+          IiAgICAgICAgPGFjdGl2aXR5CiAgICAgICAgICAgIGFuZHJvaWQ6bmFtZT0iY29tLm51dmlvLmFw
+          cC5sYXVuY2hlci5BcHBJY29uRGVmYXVsdCIKICAgICAgICAgICAgYW5kcm9pZDpjb25maWdDaGFu
+          Z2VzPSJzY3JlZW5TaXplfHNtYWxsZXN0U2NyZWVuU2l6ZXxzY3JlZW5MYXlvdXR8b3JpZW50YXRp
+          b24iCiAgICAgICAgICAgIGFuZHJvaWQ6ZW5hYmxlZD0idHJ1ZSIKICAgICAgICAgICAgYW5kcm9p
+          ZDpleHBvcnRlZD0idHJ1ZSIKICAgICAgICAgICAgYW5kcm9pZDppY29uPSJAbWlwbWFwL2ljX2xh
+          dW5jaGVyIgogICAgICAgICAgICBhbmRyb2lkOmxhYmVsPSJAc3RyaW5nL2FwcF9uYW1lIgogICAg
+          ICAgICAgICBhbmRyb2lkOnN1cHBvcnRzUGljdHVyZUluUGljdHVyZT0idHJ1ZSIKICAgICAgICAg
+          ICAgYW5kcm9pZDp0aGVtZT0iQHN0eWxlL1RoZW1lLk51dmlvLlNwbGFzaCI+CiAgICAgICAgICAg
+          IDxpbnRlbnQtZmlsdGVyPgogICAgICAgICAgICAgICAgPGFjdGlvbiBhbmRyb2lkOm5hbWU9ImFu
+          ZHJvaWQuaW50ZW50LmFjdGlvbi5NQUlOIiAvPgogICAgICAgICAgICAgICAgPGNhdGVnb3J5IGFu
+          ZHJvaWQ6bmFtZT0iYW5kcm9pZC5pbnRlbnQuY2F0ZWdvcnkuTEVBTkJBQ0tfTEFVTkNIRVIiIC8+
+          CiAgICAgICAgICAgIDwvaW50ZW50LWZpbHRlcj4KICAgICAgICA8L2FjdGl2aXR5PgoKIiIiCmlm
+          IGR1cGxpY2F0ZSBub3QgaW4gbWFuaWZlc3Q6CiAgICByYWlzZSBTeXN0ZW1FeGl0KCJEdXBsaWNh
+          dGUgQXBwSWNvbkRlZmF1bHQgTEVBTkJBQ0sgYmxvY2sgbm90IGZvdW5kIikKbWFuaWZlc3QgPSBt
+          YW5pZmVzdC5yZXBsYWNlKGR1cGxpY2F0ZSwgIiIsIDEpCm1hbmlmZXN0X3BhdGgud3JpdGVfdGV4
+          dChtYW5pZmVzdCwgZW5jb2Rpbmc9InV0Zi04IikKCiMgMykgQWRkIGFjdGl2YXRpb24gZ2F0ZSBh
+          cyBhIHdyYXBwZXIgYXJvdW5kIHRoZSBhbHJlYWR5LXdvcmtpbmcgQXBwKCkuCmdhdGVfcGF0aCA9
+          IFJPT1QgLyAiY29tcG9zZUFwcC9zcmMvYW5kcm9pZE1haW4va290bGluL2NvbS9udXZpby9hcHAv
+          YWZwbGF5L0FmUGxheUFjdGl2YXRpb25HYXRlLmt0IgpnYXRlX3BhdGgucGFyZW50Lm1rZGlyKHBh
+          cmVudHM9VHJ1ZSwgZXhpc3Rfb2s9VHJ1ZSkKZ2F0ZV9wYXRoLndyaXRlX3RleHQoJ3BhY2thZ2Ug
+          Y29tLm51dmlvLmFwcC5hZnBsYXlcblxuaW1wb3J0IGFuZHJvaWQuY29udGVudC5Db250ZXh0XG5p
+          bXBvcnQgYW5kcm9pZHguY29tcG9zZS5mb3VuZGF0aW9uLmJhY2tncm91bmRcbmltcG9ydCBhbmRy
+          b2lkeC5jb21wb3NlLmZvdW5kYXRpb24ubGF5b3V0LkFycmFuZ2VtZW50XG5pbXBvcnQgYW5kcm9p
+          ZHguY29tcG9zZS5mb3VuZGF0aW9uLmxheW91dC5Cb3hcbmltcG9ydCBhbmRyb2lkeC5jb21wb3Nl
+          LmZvdW5kYXRpb24ubGF5b3V0LkNvbHVtblxuaW1wb3J0IGFuZHJvaWR4LmNvbXBvc2UuZm91bmRh
+          dGlvbi5sYXlvdXQuU3BhY2VyXG5pbXBvcnQgYW5kcm9pZHguY29tcG9zZS5mb3VuZGF0aW9uLmxh
+          eW91dC5maWxsTWF4U2l6ZVxuaW1wb3J0IGFuZHJvaWR4LmNvbXBvc2UuZm91bmRhdGlvbi5sYXlv
+          dXQuZmlsbE1heFdpZHRoXG5pbXBvcnQgYW5kcm9pZHguY29tcG9zZS5mb3VuZGF0aW9uLmxheW91
+          dC5oZWlnaHRcbmltcG9ydCBhbmRyb2lkeC5jb21wb3NlLmZvdW5kYXRpb24ubGF5b3V0LnBhZGRp
+          bmdcbmltcG9ydCBhbmRyb2lkeC5jb21wb3NlLmZvdW5kYXRpb24ubGF5b3V0LndpZHRoSW5cbmlt
+          cG9ydCBhbmRyb2lkeC5jb21wb3NlLmZvdW5kYXRpb24uc2hhcGUuUm91bmRlZENvcm5lclNoYXBl
+          XG5pbXBvcnQgYW5kcm9pZHguY29tcG9zZS5tYXRlcmlhbDMuQnV0dG9uXG5pbXBvcnQgYW5kcm9p
+          ZHguY29tcG9zZS5tYXRlcmlhbDMuQ2lyY3VsYXJQcm9ncmVzc0luZGljYXRvclxuaW1wb3J0IGFu
+          ZHJvaWR4LmNvbXBvc2UubWF0ZXJpYWwzLk1hdGVyaWFsVGhlbWVcbmltcG9ydCBhbmRyb2lkeC5j
+          b21wb3NlLm1hdGVyaWFsMy5PdXRsaW5lZFRleHRGaWVsZFxuaW1wb3J0IGFuZHJvaWR4LmNvbXBv
+          c2UubWF0ZXJpYWwzLlRleHRcbmltcG9ydCBhbmRyb2lkeC5jb21wb3NlLnJ1bnRpbWUuQ29tcG9z
+          YWJsZVxuaW1wb3J0IGFuZHJvaWR4LmNvbXBvc2UucnVudGltZS5MYXVuY2hlZEVmZmVjdFxuaW1w
+          b3J0IGFuZHJvaWR4LmNvbXBvc2UucnVudGltZS5nZXRWYWx1ZVxuaW1wb3J0IGFuZHJvaWR4LmNv
+          bXBvc2UucnVudGltZS5tdXRhYmxlU3RhdGVPZlxuaW1wb3J0IGFuZHJvaWR4LmNvbXBvc2UucnVu
+          dGltZS5yZW1lbWJlclxuaW1wb3J0IGFuZHJvaWR4LmNvbXBvc2UucnVudGltZS5yZW1lbWJlckNv
+          cm91dGluZVNjb3BlXG5pbXBvcnQgYW5kcm9pZHguY29tcG9zZS5ydW50aW1lLnNldFZhbHVlXG5p
+          bXBvcnQgYW5kcm9pZHguY29tcG9zZS51aS5BbGlnbm1lbnRcbmltcG9ydCBhbmRyb2lkeC5jb21w
+          b3NlLnVpLk1vZGlmaWVyXG5pbXBvcnQgYW5kcm9pZHguY29tcG9zZS51aS5ncmFwaGljcy5CcnVz
+          aFxuaW1wb3J0IGFuZHJvaWR4LmNvbXBvc2UudWkuZ3JhcGhpY3MuQ29sb3JcbmltcG9ydCBhbmRy
+          b2lkeC5jb21wb3NlLnVpLnBsYXRmb3JtLkxvY2FsQ29udGV4dFxuaW1wb3J0IGFuZHJvaWR4LmNv
+          bXBvc2UudWkudGV4dC5mb250LkZvbnRXZWlnaHRcbmltcG9ydCBhbmRyb2lkeC5jb21wb3NlLnVp
+          LnRleHQuc3R5bGUuVGV4dEFsaWduXG5pbXBvcnQgYW5kcm9pZHguY29tcG9zZS51aS51bml0LmRw
+          XG5pbXBvcnQgYW5kcm9pZHguY29tcG9zZS51aS51bml0LnNwXG5pbXBvcnQga290bGlueC5jb3Jv
+          dXRpbmVzLkRpc3BhdGNoZXJzXG5pbXBvcnQga290bGlueC5jb3JvdXRpbmVzLmxhdW5jaFxuaW1w
+          b3J0IGtvdGxpbnguY29yb3V0aW5lcy53aXRoQ29udGV4dFxuaW1wb3J0IG9raHR0cDMuTWVkaWFU
+          eXBlLkNvbXBhbmlvbi50b01lZGlhVHlwZVxuaW1wb3J0IG9raHR0cDMuT2tIdHRwQ2xpZW50XG5p
+          bXBvcnQgb2todHRwMy5SZXF1ZXN0XG5pbXBvcnQgb2todHRwMy5SZXF1ZXN0Qm9keS5Db21wYW5p
+          b24udG9SZXF1ZXN0Qm9keVxuaW1wb3J0IG9yZy5qc29uLkpTT05PYmplY3RcbmltcG9ydCBqYXZh
+          LnV0aWwuVVVJRFxuaW1wb3J0IGphdmEudXRpbC5jb25jdXJyZW50LlRpbWVVbml0XG5cbnByaXZh
+          dGUgY29uc3QgdmFsIEFQSV9CQVNFID0gImh0dHBzOi8vYWZwbGF5LWdhdGV3YXkuc21hcjd5Lndv
+          cmtlcnMuZGV2IlxucHJpdmF0ZSBjb25zdCB2YWwgUFJFRlMgPSAiYWZwbGF5X2FjdGl2YXRpb24i
+          XG5wcml2YXRlIGNvbnN0IHZhbCBLRVlfREVWSUNFX0lEID0gImRldmljZV9pZCJcbnByaXZhdGUg
+          Y29uc3QgdmFsIEtFWV9UT0tFTiA9ICJ0b2tlbiJcbnByaXZhdGUgY29uc3QgdmFsIEtFWV9MQVNU
+          X0NIRUNLID0gImxhc3RfY2hlY2siXG5wcml2YXRlIGNvbnN0IHZhbCBDSEVDS19JTlRFUlZBTF9N
+          UyA9IDEyTCAqIDYwTCAqIDYwTCAqIDEwMDBMXG5wcml2YXRlIGNvbnN0IHZhbCBPRkZMSU5FX0dS
+          QUNFX01TID0gNzJMICogNjBMICogNjBMICogMTAwMExcblxucHJpdmF0ZSBlbnVtIGNsYXNzIEdh
+          dGVTdGF0ZSB7XG4gICAgQ0hFQ0tJTkcsXG4gICAgTE9DS0VELFxuICAgIFVOTE9DS0VELFxufVxu
+          XG5wcml2YXRlIGRhdGEgY2xhc3MgQWN0aXZhdGlvblJlcGx5KFxuICAgIHZhbCBvazogQm9vbGVh
+          bixcbiAgICB2YWwgdG9rZW46IFN0cmluZz8gPSBudWxsLFxuICAgIHZhbCBlcnJvcjogU3RyaW5n
+          PyA9IG51bGwsXG4gICAgdmFsIGh0dHBDb2RlOiBJbnQgPSAwLFxuKVxuXG5wcml2YXRlIG9iamVj
+          dCBBY3RpdmF0aW9uU3RvcmUge1xuICAgIHByaXZhdGUgZnVuIHByZWZzKGNvbnRleHQ6IENvbnRl
+          eHQpID1cbiAgICAgICAgY29udGV4dC5nZXRTaGFyZWRQcmVmZXJlbmNlcyhQUkVGUywgQ29udGV4
+          dC5NT0RFX1BSSVZBVEUpXG5cbiAgICBmdW4gZGV2aWNlSWQoY29udGV4dDogQ29udGV4dCk6IFN0
+          cmluZyB7XG4gICAgICAgIHZhbCBwcmVmcyA9IHByZWZzKGNvbnRleHQpXG4gICAgICAgIHZhbCBl
+          eGlzdGluZyA9IHByZWZzLmdldFN0cmluZyhLRVlfREVWSUNFX0lELCBudWxsKVxuICAgICAgICBp
+          ZiAoIWV4aXN0aW5nLmlzTnVsbE9yQmxhbmsoKSkgcmV0dXJuIGV4aXN0aW5nXG5cbiAgICAgICAg
+          dmFsIGdlbmVyYXRlZCA9IFVVSUQucmFuZG9tVVVJRCgpLnRvU3RyaW5nKCkucmVwbGFjZSgiLSIs
+          ICIiKVxuICAgICAgICBwcmVmcy5lZGl0KCkucHV0U3RyaW5nKEtFWV9ERVZJQ0VfSUQsIGdlbmVy
+          YXRlZCkuYXBwbHkoKVxuICAgICAgICByZXR1cm4gZ2VuZXJhdGVkXG4gICAgfVxuXG4gICAgZnVu
+          IHRva2VuKGNvbnRleHQ6IENvbnRleHQpOiBTdHJpbmc/ID1cbiAgICAgICAgcHJlZnMoY29udGV4
+          dCkuZ2V0U3RyaW5nKEtFWV9UT0tFTiwgbnVsbCk/LnRha2VJZiB7IGl0LmlzTm90QmxhbmsoKSB9
+          XG5cbiAgICBmdW4gbGFzdENoZWNrKGNvbnRleHQ6IENvbnRleHQpOiBMb25nID1cbiAgICAgICAg
+          cHJlZnMoY29udGV4dCkuZ2V0TG9uZyhLRVlfTEFTVF9DSEVDSywgMEwpXG5cbiAgICBmdW4gc2F2
+          ZVRva2VuKGNvbnRleHQ6IENvbnRleHQsIHRva2VuOiBTdHJpbmcpIHtcbiAgICAgICAgcHJlZnMo
+          Y29udGV4dCkuZWRpdCgpXG4gICAgICAgICAgICAucHV0U3RyaW5nKEtFWV9UT0tFTiwgdG9rZW4p
+          XG4gICAgICAgICAgICAucHV0TG9uZyhLRVlfTEFTVF9DSEVDSywgU3lzdGVtLmN1cnJlbnRUaW1l
+          TWlsbGlzKCkpXG4gICAgICAgICAgICAuYXBwbHkoKVxuICAgIH1cblxuICAgIGZ1biBtYXJrQ2hl
+          Y2tlZChjb250ZXh0OiBDb250ZXh0KSB7XG4gICAgICAgIHByZWZzKGNvbnRleHQpLmVkaXQoKVxu
+          ICAgICAgICAgICAgLnB1dExvbmcoS0VZX0xBU1RfQ0hFQ0ssIFN5c3RlbS5jdXJyZW50VGltZU1p
+          bGxpcygpKVxuICAgICAgICAgICAgLmFwcGx5KClcbiAgICB9XG5cbiAgICBmdW4gY2xlYXJUb2tl
+          bihjb250ZXh0OiBDb250ZXh0KSB7XG4gICAgICAgIHByZWZzKGNvbnRleHQpLmVkaXQoKVxuICAg
+          ICAgICAgICAgLnJlbW92ZShLRVlfVE9LRU4pXG4gICAgICAgICAgICAucmVtb3ZlKEtFWV9MQVNU
+          X0NIRUNLKVxuICAgICAgICAgICAgLmFwcGx5KClcbiAgICB9XG59XG5cbnByaXZhdGUgb2JqZWN0
+          IEFjdGl2YXRpb25BcGkge1xuICAgIHByaXZhdGUgdmFsIG1lZGlhVHlwZSA9ICJhcHBsaWNhdGlv
+          bi9qc29uOyBjaGFyc2V0PXV0Zi04Ii50b01lZGlhVHlwZSgpXG5cbiAgICBwcml2YXRlIHZhbCBj
+          bGllbnQgPSBPa0h0dHBDbGllbnQuQnVpbGRlcigpXG4gICAgICAgIC5jb25uZWN0VGltZW91dCg4
+          LCBUaW1lVW5pdC5TRUNPTkRTKVxuICAgICAgICAucmVhZFRpbWVvdXQoOCwgVGltZVVuaXQuU0VD
+          T05EUylcbiAgICAgICAgLndyaXRlVGltZW91dCg4LCBUaW1lVW5pdC5TRUNPTkRTKVxuICAgICAg
+          ICAuYnVpbGQoKVxuXG4gICAgZnVuIGFjdGl2YXRlKGNvZGU6IFN0cmluZywgZGV2aWNlSWQ6IFN0
+          cmluZyk6IEFjdGl2YXRpb25SZXBseSA9XG4gICAgICAgIHBvc3QoXG4gICAgICAgICAgICBwYXRo
+          ID0gIi92MS9hY3RpdmF0ZSIsXG4gICAgICAgICAgICBwYXlsb2FkID0gSlNPTk9iamVjdCgpXG4g
+          ICAgICAgICAgICAgICAgLnB1dCgiY29kZSIsIGNvZGUpXG4gICAgICAgICAgICAgICAgLnB1dCgi
+          ZGV2aWNlX2lkIiwgZGV2aWNlSWQpLFxuICAgICAgICApXG5cbiAgICBmdW4gY2hlY2sodG9rZW46
+          IFN0cmluZywgZGV2aWNlSWQ6IFN0cmluZyk6IEFjdGl2YXRpb25SZXBseSA9XG4gICAgICAgIHBv
+          c3QoXG4gICAgICAgICAgICBwYXRoID0gIi92MS9jaGVjayIsXG4gICAgICAgICAgICBwYXlsb2Fk
+          ID0gSlNPTk9iamVjdCgpXG4gICAgICAgICAgICAgICAgLnB1dCgidG9rZW4iLCB0b2tlbilcbiAg
+          ICAgICAgICAgICAgICAucHV0KCJkZXZpY2VfaWQiLCBkZXZpY2VJZCksXG4gICAgICAgIClcblxu
+          ICAgIHByaXZhdGUgZnVuIHBvc3QocGF0aDogU3RyaW5nLCBwYXlsb2FkOiBKU09OT2JqZWN0KTog
+          QWN0aXZhdGlvblJlcGx5IHtcbiAgICAgICAgcmV0dXJuIHRyeSB7XG4gICAgICAgICAgICB2YWwg
+          cmVxdWVzdCA9IFJlcXVlc3QuQnVpbGRlcigpXG4gICAgICAgICAgICAgICAgLnVybChBUElfQkFT
+          RSArIHBhdGgpXG4gICAgICAgICAgICAgICAgLnBvc3QocGF5bG9hZC50b1N0cmluZygpLnRvUmVx
+          dWVzdEJvZHkobWVkaWFUeXBlKSlcbiAgICAgICAgICAgICAgICAuaGVhZGVyKCJBY2NlcHQiLCAi
+          YXBwbGljYXRpb24vanNvbiIpXG4gICAgICAgICAgICAgICAgLmJ1aWxkKClcblxuICAgICAgICAg
+          ICAgY2xpZW50Lm5ld0NhbGwocmVxdWVzdCkuZXhlY3V0ZSgpLnVzZSB7IHJlc3BvbnNlIC0+XG4g
+          ICAgICAgICAgICAgICAgdmFsIGJvZHkgPSByZXNwb25zZS5ib2R5Py5zdHJpbmcoKS5vckVtcHR5
+          KClcbiAgICAgICAgICAgICAgICB2YWwganNvbiA9IHJ1bkNhdGNoaW5nIHsgSlNPTk9iamVjdChi
+          b2R5KSB9LmdldE9yTnVsbCgpXG5cbiAgICAgICAgICAgICAgICBBY3RpdmF0aW9uUmVwbHkoXG4g
+          ICAgICAgICAgICAgICAgICAgIG9rID0gcmVzcG9uc2UuaXNTdWNjZXNzZnVsICYmIGpzb24/Lm9w
+          dEJvb2xlYW4oIm9rIiwgZmFsc2UpID09IHRydWUsXG4gICAgICAgICAgICAgICAgICAgIHRva2Vu
+          ID0ganNvbj8ub3B0U3RyaW5nKCJ0b2tlbiIpPy50YWtlSWYgeyBpdC5pc05vdEJsYW5rKCkgfSxc
+          biAgICAgICAgICAgICAgICAgICAgZXJyb3IgPSBqc29uPy5vcHRTdHJpbmcoImVycm9yIik/LnRh
+          a2VJZiB7IGl0LmlzTm90QmxhbmsoKSB9LFxuICAgICAgICAgICAgICAgICAgICBodHRwQ29kZSA9
+          IHJlc3BvbnNlLmNvZGUsXG4gICAgICAgICAgICAgICAgKVxuICAgICAgICAgICAgfVxuICAgICAg
+          ICB9IGNhdGNoIChfOiBFeGNlcHRpb24pIHtcbiAgICAgICAgICAgIEFjdGl2YXRpb25SZXBseShc
+          biAgICAgICAgICAgICAgICBvayA9IGZhbHNlLFxuICAgICAgICAgICAgICAgIGVycm9yID0gIm5l
+          dHdvcmtfZXJyb3IiLFxuICAgICAgICAgICAgICAgIGh0dHBDb2RlID0gMCxcbiAgICAgICAgICAg
+          IClcbiAgICAgICAgfVxuICAgIH1cbn1cblxuQENvbXBvc2FibGVcbmZ1biBBZlBsYXlBY3RpdmF0
+          aW9uR2F0ZShcbiAgICBjb250ZW50OiBAQ29tcG9zYWJsZSAoKSAtPiBVbml0LFxuKSB7XG4gICAg
+          dmFsIGNvbnRleHQgPSBMb2NhbENvbnRleHQuY3VycmVudC5hcHBsaWNhdGlvbkNvbnRleHRcbiAg
+          ICB2YWwgc2NvcGUgPSByZW1lbWJlckNvcm91dGluZVNjb3BlKClcblxuICAgIHZhciBzdGF0ZSBi
+          eSByZW1lbWJlciB7XG4gICAgICAgIG11dGFibGVTdGF0ZU9mKFxuICAgICAgICAgICAgaWYgKEFj
+          dGl2YXRpb25TdG9yZS50b2tlbihjb250ZXh0KSA9PSBudWxsKSB7XG4gICAgICAgICAgICAgICAg
+          R2F0ZVN0YXRlLkxPQ0tFRFxuICAgICAgICAgICAgfSBlbHNlIHtcbiAgICAgICAgICAgICAgICBH
+          YXRlU3RhdGUuQ0hFQ0tJTkdcbiAgICAgICAgICAgIH1cbiAgICAgICAgKVxuICAgIH1cblxuICAg
+          IHZhciBpbnB1dCBieSByZW1lbWJlciB7IG11dGFibGVTdGF0ZU9mKCIiKSB9XG4gICAgdmFyIGJ1
+          c3kgYnkgcmVtZW1iZXIgeyBtdXRhYmxlU3RhdGVPZihmYWxzZSkgfVxuICAgIHZhciBtZXNzYWdl
+          IGJ5IHJlbWVtYmVyIHsgbXV0YWJsZVN0YXRlT2Y8U3RyaW5nPz4obnVsbCkgfVxuXG4gICAgTGF1
+          bmNoZWRFZmZlY3QoVW5pdCkge1xuICAgICAgICB2YWwgdG9rZW4gPSBBY3RpdmF0aW9uU3RvcmUu
+          dG9rZW4oY29udGV4dClcbiAgICAgICAgaWYgKHRva2VuID09IG51bGwpIHtcbiAgICAgICAgICAg
+          IHN0YXRlID0gR2F0ZVN0YXRlLkxPQ0tFRFxuICAgICAgICAgICAgcmV0dXJuQExhdW5jaGVkRWZm
+          ZWN0XG4gICAgICAgIH1cblxuICAgICAgICB2YWwgbm93ID0gU3lzdGVtLmN1cnJlbnRUaW1lTWls
+          bGlzKClcbiAgICAgICAgdmFsIGxhc3RDaGVjayA9IEFjdGl2YXRpb25TdG9yZS5sYXN0Q2hlY2so
+          Y29udGV4dClcblxuICAgICAgICBpZiAobGFzdENoZWNrID4gMEwgJiYgbm93IC0gbGFzdENoZWNr
+          IDwgQ0hFQ0tfSU5URVJWQUxfTVMpIHtcbiAgICAgICAgICAgIHN0YXRlID0gR2F0ZVN0YXRlLlVO
+          TE9DS0VEXG4gICAgICAgICAgICByZXR1cm5ATGF1bmNoZWRFZmZlY3RcbiAgICAgICAgfVxuXG4g
+          ICAgICAgIHZhbCByZXBseSA9IHdpdGhDb250ZXh0KERpc3BhdGNoZXJzLklPKSB7XG4gICAgICAg
+          ICAgICBBY3RpdmF0aW9uQXBpLmNoZWNrKFxuICAgICAgICAgICAgICAgIHRva2VuID0gdG9rZW4s
+          XG4gICAgICAgICAgICAgICAgZGV2aWNlSWQgPSBBY3RpdmF0aW9uU3RvcmUuZGV2aWNlSWQoY29u
+          dGV4dCksXG4gICAgICAgICAgICApXG4gICAgICAgIH1cblxuICAgICAgICB3aGVuIHtcbiAgICAg
+          ICAgICAgIHJlcGx5Lm9rIC0+IHtcbiAgICAgICAgICAgICAgICBBY3RpdmF0aW9uU3RvcmUubWFy
+          a0NoZWNrZWQoY29udGV4dClcbiAgICAgICAgICAgICAgICBzdGF0ZSA9IEdhdGVTdGF0ZS5VTkxP
+          Q0tFRFxuICAgICAgICAgICAgfVxuXG4gICAgICAgICAgICByZXBseS5odHRwQ29kZSA9PSA0MDEg
+          fHwgcmVwbHkuaHR0cENvZGUgPT0gNDAzIC0+IHtcbiAgICAgICAgICAgICAgICBBY3RpdmF0aW9u
+          U3RvcmUuY2xlYXJUb2tlbihjb250ZXh0KVxuICAgICAgICAgICAgICAgIG1lc3NhZ2UgPSAiQWN0
+          aXZhcmVhIG51IG1haSBlc3RlIHZhbGlkxIMuIEludHJvZHUgZGluIG5vdSBjb2R1bC4iXG4gICAg
+          ICAgICAgICAgICAgc3RhdGUgPSBHYXRlU3RhdGUuTE9DS0VEXG4gICAgICAgICAgICB9XG5cbiAg
+          ICAgICAgICAgIGxhc3RDaGVjayA+IDBMICYmIG5vdyAtIGxhc3RDaGVjayA8IE9GRkxJTkVfR1JB
+          Q0VfTVMgLT4ge1xuICAgICAgICAgICAgICAgIHN0YXRlID0gR2F0ZVN0YXRlLlVOTE9DS0VEXG4g
+          ICAgICAgICAgICB9XG5cbiAgICAgICAgICAgIGVsc2UgLT4ge1xuICAgICAgICAgICAgICAgIG1l
+          c3NhZ2UgPSAiTnUgcG90IHZlcmlmaWNhIGFjdGl2YXJlYS4gVmVyaWZpY8SDIGludGVybmV0dWwu
+          IlxuICAgICAgICAgICAgICAgIHN0YXRlID0gR2F0ZVN0YXRlLkxPQ0tFRFxuICAgICAgICAgICAg
+          fVxuICAgICAgICB9XG4gICAgfVxuXG4gICAgd2hlbiAoc3RhdGUpIHtcbiAgICAgICAgR2F0ZVN0
+          YXRlLlVOTE9DS0VEIC0+IGNvbnRlbnQoKVxuXG4gICAgICAgIEdhdGVTdGF0ZS5DSEVDS0lORyAt
+          PiB7XG4gICAgICAgICAgICBCb3goXG4gICAgICAgICAgICAgICAgbW9kaWZpZXIgPSBNb2RpZmll
+          clxuICAgICAgICAgICAgICAgICAgICAuZmlsbE1heFNpemUoKVxuICAgICAgICAgICAgICAgICAg
+          ICAuYmFja2dyb3VuZChDb2xvcigweEZGMDgwODBCKSksXG4gICAgICAgICAgICAgICAgY29udGVu
+          dEFsaWdubWVudCA9IEFsaWdubWVudC5DZW50ZXIsXG4gICAgICAgICAgICApIHtcbiAgICAgICAg
+          ICAgICAgICBDb2x1bW4oXG4gICAgICAgICAgICAgICAgICAgIGhvcml6b250YWxBbGlnbm1lbnQg
+          PSBBbGlnbm1lbnQuQ2VudGVySG9yaXpvbnRhbGx5LFxuICAgICAgICAgICAgICAgICAgICB2ZXJ0
+          aWNhbEFycmFuZ2VtZW50ID0gQXJyYW5nZW1lbnQuc3BhY2VkQnkoMTYuZHApLFxuICAgICAgICAg
+          ICAgICAgICkge1xuICAgICAgICAgICAgICAgICAgICBDaXJjdWxhclByb2dyZXNzSW5kaWNhdG9y
+          KClcbiAgICAgICAgICAgICAgICAgICAgVGV4dCgiVmVyaWZpY2FyZSBBRiBQbGF54oCmIiwgY29s
+          b3IgPSBDb2xvci5XaGl0ZSlcbiAgICAgICAgICAgICAgICB9XG4gICAgICAgICAgICB9XG4gICAg
+          ICAgIH1cblxuICAgICAgICBHYXRlU3RhdGUuTE9DS0VEIC0+IHtcbiAgICAgICAgICAgIEJveChc
+          biAgICAgICAgICAgICAgICBtb2RpZmllciA9IE1vZGlmaWVyXG4gICAgICAgICAgICAgICAgICAg
+          IC5maWxsTWF4U2l6ZSgpXG4gICAgICAgICAgICAgICAgICAgIC5iYWNrZ3JvdW5kKFxuICAgICAg
+          ICAgICAgICAgICAgICAgICAgQnJ1c2gudmVydGljYWxHcmFkaWVudChcbiAgICAgICAgICAgICAg
+          ICAgICAgICAgICAgICBsaXN0T2YoXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIENv
+          bG9yKDB4RkYxNzEwMEIpLFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBDb2xvcigw
+          eEZGMDgwODBCKSxcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICApXG4gICAgICAgICAgICAg
+          ICAgICAgICAgICApXG4gICAgICAgICAgICAgICAgICAgIClcbiAgICAgICAgICAgICAgICAgICAg
+          LnBhZGRpbmcoMjQuZHApLFxuICAgICAgICAgICAgICAgIGNvbnRlbnRBbGlnbm1lbnQgPSBBbGln
+          bm1lbnQuQ2VudGVyLFxuICAgICAgICAgICAgKSB7XG4gICAgICAgICAgICAgICAgQ29sdW1uKFxu
+          ICAgICAgICAgICAgICAgICAgICBtb2RpZmllciA9IE1vZGlmaWVyXG4gICAgICAgICAgICAgICAg
+          ICAgICAgICAud2lkdGhJbihtYXggPSA0ODAuZHApXG4gICAgICAgICAgICAgICAgICAgICAgICAu
+          ZmlsbE1heFdpZHRoKClcbiAgICAgICAgICAgICAgICAgICAgICAgIC5iYWNrZ3JvdW5kKFxuICAg
+          ICAgICAgICAgICAgICAgICAgICAgICAgIGNvbG9yID0gQ29sb3IoMHhFRTE3MTcxQyksXG4gICAg
+          ICAgICAgICAgICAgICAgICAgICAgICAgc2hhcGUgPSBSb3VuZGVkQ29ybmVyU2hhcGUoMjQuZHAp
+          LFxuICAgICAgICAgICAgICAgICAgICAgICAgKVxuICAgICAgICAgICAgICAgICAgICAgICAgLnBh
+          ZGRpbmcoMjQuZHApLFxuICAgICAgICAgICAgICAgICAgICBob3Jpem9udGFsQWxpZ25tZW50ID0g
+          QWxpZ25tZW50LkNlbnRlckhvcml6b250YWxseSxcbiAgICAgICAgICAgICAgICApIHtcbiAgICAg
+          ICAgICAgICAgICAgICAgVGV4dChcbiAgICAgICAgICAgICAgICAgICAgICAgIHRleHQgPSAiQUYg
+          UExBWSIsXG4gICAgICAgICAgICAgICAgICAgICAgICBmb250U2l6ZSA9IDMyLnNwLFxuICAgICAg
+          ICAgICAgICAgICAgICAgICAgZm9udFdlaWdodCA9IEZvbnRXZWlnaHQuQmxhY2ssXG4gICAgICAg
+          ICAgICAgICAgICAgICAgICBjb2xvciA9IENvbG9yLldoaXRlLFxuICAgICAgICAgICAgICAgICAg
+          ICApXG5cbiAgICAgICAgICAgICAgICAgICAgVGV4dChcbiAgICAgICAgICAgICAgICAgICAgICAg
+          IHRleHQgPSAiQWN0aXZhcmUgZGlzcG96aXRpdiIsXG4gICAgICAgICAgICAgICAgICAgICAgICBm
+          b250U2l6ZSA9IDE3LnNwLFxuICAgICAgICAgICAgICAgICAgICAgICAgY29sb3IgPSBDb2xvcigw
+          eEZGRkZCRjQ3KSxcbiAgICAgICAgICAgICAgICAgICAgKVxuXG4gICAgICAgICAgICAgICAgICAg
+          IFNwYWNlcihNb2RpZmllci5oZWlnaHQoMjAuZHApKVxuXG4gICAgICAgICAgICAgICAgICAgIFRl
+          eHQoXG4gICAgICAgICAgICAgICAgICAgICAgICB0ZXh0ID0gIkludHJvZHUgY29kdWwgcHJpbWl0
+          LiBEb2FyIGxpdGVyZSDImWkgY2lmcmUsIGbEg3LEgyBsaW5pdcibZS4iLFxuICAgICAgICAgICAg
+          ICAgICAgICAgICAgY29sb3IgPSBDb2xvcigweEZGQkRCREM4KSxcbiAgICAgICAgICAgICAgICAg
+          ICAgICAgIHRleHRBbGlnbiA9IFRleHRBbGlnbi5DZW50ZXIsXG4gICAgICAgICAgICAgICAgICAg
+          IClcblxuICAgICAgICAgICAgICAgICAgICBTcGFjZXIoTW9kaWZpZXIuaGVpZ2h0KDE2LmRwKSlc
+          blxuICAgICAgICAgICAgICAgICAgICBPdXRsaW5lZFRleHRGaWVsZChcbiAgICAgICAgICAgICAg
+          ICAgICAgICAgIHZhbHVlID0gaW5wdXQsXG4gICAgICAgICAgICAgICAgICAgICAgICBvblZhbHVl
+          Q2hhbmdlID0geyByYXcgLT5cbiAgICAgICAgICAgICAgICAgICAgICAgICAgICBpbnB1dCA9IHJh
+          d1xuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAudXBwZXJjYXNlKClcbiAgICAgICAg
+          ICAgICAgICAgICAgICAgICAgICAgICAgLmZpbHRlciB7IGl0LmlzTGV0dGVyT3JEaWdpdCgpIH1c
+          biAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgLnRha2UoMTQpXG4gICAgICAgICAgICAg
+          ICAgICAgICAgICAgICAgbWVzc2FnZSA9IG51bGxcbiAgICAgICAgICAgICAgICAgICAgICAgIH0s
+          XG4gICAgICAgICAgICAgICAgICAgICAgICBsYWJlbCA9IHsgVGV4dCgiQ29kIGRlIGFjdGl2YXJl
+          IikgfSxcbiAgICAgICAgICAgICAgICAgICAgICAgIHNpbmdsZUxpbmUgPSB0cnVlLFxuICAgICAg
+          ICAgICAgICAgICAgICAgICAgbW9kaWZpZXIgPSBNb2RpZmllci5maWxsTWF4V2lkdGgoKSxcbiAg
+          ICAgICAgICAgICAgICAgICAgKVxuXG4gICAgICAgICAgICAgICAgICAgIGlmICghbWVzc2FnZS5p
+          c051bGxPckJsYW5rKCkpIHtcbiAgICAgICAgICAgICAgICAgICAgICAgIFNwYWNlcihNb2RpZmll
+          ci5oZWlnaHQoMTAuZHApKVxuICAgICAgICAgICAgICAgICAgICAgICAgVGV4dChcbiAgICAgICAg
+          ICAgICAgICAgICAgICAgICAgICB0ZXh0ID0gbWVzc2FnZS5vckVtcHR5KCksXG4gICAgICAgICAg
+          ICAgICAgICAgICAgICAgICAgY29sb3IgPSBNYXRlcmlhbFRoZW1lLmNvbG9yU2NoZW1lLmVycm9y
+          LFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgIHRleHRBbGlnbiA9IFRleHRBbGlnbi5DZW50
+          ZXIsXG4gICAgICAgICAgICAgICAgICAgICAgICApXG4gICAgICAgICAgICAgICAgICAgIH1cblxu
+          ICAgICAgICAgICAgICAgICAgICBTcGFjZXIoTW9kaWZpZXIuaGVpZ2h0KDE4LmRwKSlcblxuICAg
+          ICAgICAgICAgICAgICAgICBCdXR0b24oXG4gICAgICAgICAgICAgICAgICAgICAgICBlbmFibGVk
+          ID0gIWJ1c3kgJiYgaW5wdXQubGVuZ3RoID09IDE0LFxuICAgICAgICAgICAgICAgICAgICAgICAg
+          b25DbGljayA9IHtcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICBidXN5ID0gdHJ1ZVxuICAg
+          ICAgICAgICAgICAgICAgICAgICAgICAgIG1lc3NhZ2UgPSBudWxsXG5cbiAgICAgICAgICAgICAg
+          ICAgICAgICAgICAgICBzY29wZS5sYXVuY2gge1xuICAgICAgICAgICAgICAgICAgICAgICAgICAg
+          ICAgICB2YWwgcmVwbHkgPSB3aXRoQ29udGV4dChEaXNwYXRjaGVycy5JTykge1xuICAgICAgICAg
+          ICAgICAgICAgICAgICAgICAgICAgICAgICAgQWN0aXZhdGlvbkFwaS5hY3RpdmF0ZShcbiAgICAg
+          ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBjb2RlID0gaW5wdXQsXG4gICAgICAg
+          ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgZGV2aWNlSWQgPSBBY3RpdmF0aW9uU3Rv
+          cmUuZGV2aWNlSWQoY29udGV4dCksXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+          ICApXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIH1cblxuICAgICAgICAgICAgICAg
+          ICAgICAgICAgICAgICAgICBidXN5ID0gZmFsc2VcbiAgICAgICAgICAgICAgICAgICAgICAgICAg
+          ICAgICAgdmFsIHJldHVybmVkVG9rZW4gPSByZXBseS50b2tlblxuXG4gICAgICAgICAgICAgICAg
+          ICAgICAgICAgICAgICAgIGlmIChyZXBseS5vayAmJiAhcmV0dXJuZWRUb2tlbi5pc051bGxPckJs
+          YW5rKCkpIHtcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIEFjdGl2YXRpb25T
+          dG9yZS5zYXZlVG9rZW4oY29udGV4dCwgcmV0dXJuZWRUb2tlbilcbiAgICAgICAgICAgICAgICAg
+          ICAgICAgICAgICAgICAgICAgIHN0YXRlID0gR2F0ZVN0YXRlLlVOTE9DS0VEXG4gICAgICAgICAg
+          ICAgICAgICAgICAgICAgICAgICAgIH0gZWxzZSB7XG4gICAgICAgICAgICAgICAgICAgICAgICAg
+          ICAgICAgICAgICBtZXNzYWdlID0gd2hlbiAocmVwbHkuZXJyb3IpIHtcbiAgICAgICAgICAgICAg
+          ICAgICAgICAgICAgICAgICAgICAgICAgICAiaW52YWxpZF9jb2RlIiAtPiAiQ29kdWwgbnUgZXN0
+          ZSB2YWxpZC4iXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgImNvZGVf
+          YmxvY2tlZCIgLT4gIkNvZHVsIGVzdGUgYmxvY2F0LiJcbiAgICAgICAgICAgICAgICAgICAgICAg
+          ICAgICAgICAgICAgICAgICAiY29kZV9leHBpcmVkIiAtPiAiQ29kdWwgYSBleHBpcmF0LiJcbiAg
+          ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAiZGV2aWNlX2xpbWl0IiAtPiAi
+          Q29kdWwgYSBhanVucyBsYSBsaW1pdGEgZGUgNCBkaXNwb3ppdGl2ZS4iXG4gICAgICAgICAgICAg
+          ICAgICAgICAgICAgICAgICAgICAgICAgICAgImludmFsaWRfcmVxdWVzdCIgLT4gIkNvZHVsIG51
+          IGVzdGUgY29tcGxldC4iXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+          Im5ldHdvcmtfZXJyb3IiIC0+ICJOdSBwb3QgY29udGFjdGEgc2VydmVydWwgZGUgYWN0aXZhcmUu
+          IlxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIGVsc2UgLT4gIkFjdGl2
+          YXJlYSBudSBhIHJldciZaXQuIMOObmNlYXJjxIMgZGluIG5vdS4iXG4gICAgICAgICAgICAgICAg
+          ICAgICAgICAgICAgICAgICAgICB9XG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIH1c
+          biAgICAgICAgICAgICAgICAgICAgICAgICAgICB9XG4gICAgICAgICAgICAgICAgICAgICAgICB9
+          LFxuICAgICAgICAgICAgICAgICAgICAgICAgbW9kaWZpZXIgPSBNb2RpZmllci5maWxsTWF4V2lk
+          dGgoKSxcbiAgICAgICAgICAgICAgICAgICAgKSB7XG4gICAgICAgICAgICAgICAgICAgICAgICBU
+          ZXh0KGlmIChidXN5KSAiU0UgVkVSSUZJQ8SC4oCmIiBlbHNlICJBQ1RJVkVBWsSCIilcbiAgICAg
+          ICAgICAgICAgICAgICAgfVxuICAgICAgICAgICAgICAgIH1cbiAgICAgICAgICAgIH1cbiAgICAg
+          ICAgfVxuICAgIH1cbn1cbicsIGVuY29kaW5nPSJ1dGYtOCIpCgptYWluX3BhdGggPSBST09UIC8g
+          ImNvbXBvc2VBcHAvc3JjL2FuZHJvaWRNYWluL2tvdGxpbi9jb20vbnV2aW8vYXBwL01haW5BY3Rp
+          dml0eS5rdCIKbWFpbiA9IG1haW5fcGF0aC5yZWFkX3RleHQoZW5jb2Rpbmc9InV0Zi04IikKCmlm
+          ICJpbXBvcnQgY29tLm51dmlvLmFwcC5hZnBsYXkuQWZQbGF5QWN0aXZhdGlvbkdhdGUiIG5vdCBp
+          biBtYWluOgogICAgYW5jaG9yID0gImltcG9ydCBjb20ubnV2aW8uYXBwLmNvcmUuYXV0aC5BdXRo
+          U3RvcmFnZVxuIgogICAgaWYgYW5jaG9yIG5vdCBpbiBtYWluOgogICAgICAgIHJhaXNlIFN5c3Rl
+          bUV4aXQoIk1haW5BY3Rpdml0eSBpbXBvcnQgYW5jaG9yIG1pc3NpbmciKQogICAgbWFpbiA9IG1h
+          aW4ucmVwbGFjZSgKICAgICAgICBhbmNob3IsCiAgICAgICAgImltcG9ydCBjb20ubnV2aW8uYXBw
+          LmFmcGxheS5BZlBsYXlBY3RpdmF0aW9uR2F0ZVxuIiArIGFuY2hvciwKICAgICAgICAxLAogICAg
+          KQoKb2xkID0gIiIiICAgICAgICBzZXRDb250ZW50IHsKICAgICAgICAgICAgQXBwKCkKICAgICAg
+          ICB9IiIiCm5ldyA9ICIiIiAgICAgICAgc2V0Q29udGVudCB7CiAgICAgICAgICAgIEFmUGxheUFj
+          dGl2YXRpb25HYXRlIHsKICAgICAgICAgICAgICAgIEFwcCgpCiAgICAgICAgICAgIH0KICAgICAg
+          ICB9IiIiCmlmIG9sZCBub3QgaW4gbWFpbjoKICAgIHJhaXNlIFN5c3RlbUV4aXQoIk1haW5BY3Rp
+          dml0eSBzZXRDb250ZW50IGFuY2hvciBtaXNzaW5nIikKbWFpbiA9IG1haW4ucmVwbGFjZShvbGQs
+          IG5ldywgMSkKbWFpbl9wYXRoLndyaXRlX3RleHQobWFpbiwgZW5jb2Rpbmc9InV0Zi04IikKCiMg
+          NCkgS2VlcCB2aXNpYmxlIHZlcnNpb24gMC42LjMsIGJ1bXAgdmVyc2lvbkNvZGUgZm9yIGluc3Rh
+          bGwtb3Zlci1jdXJyZW50Lgp2ZXJzaW9uX3BhdGggPSBST09UIC8gImlvc0FwcC9Db25maWd1cmF0
+          aW9uL1ZlcnNpb24ueGNjb25maWciCnZlcnNpb24gPSB2ZXJzaW9uX3BhdGgucmVhZF90ZXh0KGVu
+          Y29kaW5nPSJ1dGYtOCIpCmlmICJNQVJLRVRJTkdfVkVSU0lPTj0wLjYuMyIgbm90IGluIHZlcnNp
+          b246CiAgICByYWlzZSBTeXN0ZW1FeGl0KCJFeHBlY3RlZCAwLjYuMyBiYXNlIG5vdCBmb3VuZCIp
+          CnZlcnNpb24gPSByZS5zdWIoCiAgICByIkNVUlJFTlRfUFJPSkVDVF9WRVJTSU9OPVxkKyIsCiAg
+          ICAiQ1VSUkVOVF9QUk9KRUNUX1ZFUlNJT049MjY0IiwKICAgIHZlcnNpb24sCiAgICBjb3VudD0x
+          LAopCnZlcnNpb25fcGF0aC53cml0ZV90ZXh0KHZlcnNpb24sIGVuY29kaW5nPSJ1dGYtOCIpCg==
+          PATCH64
+          base64 -d "$RUNNER_TEMP/afplay_final_patch.b64" > "$RUNNER_TEMP/afplay_final_patch.py"
+          python3 -m py_compile "$RUNNER_TEMP/afplay_final_patch.py"
+          python3 "$RUNNER_TEMP/afplay_final_patch.py"
+
+
+      - name: Add FileList to torrent sources
+        shell: bash
+        env:
+          FILELIST_USERNAME: ${{ secrets.FILELIST_USERNAME }}
+          FILELIST_PASSKEY: ${{ secrets.FILELIST_PASSKEY }}
+        run: |
+          set -euo pipefail
+          test -n "${FILELIST_USERNAME:-}" || { echo "Missing GitHub secret FILELIST_USERNAME"; exit 1; }
+          test -n "${FILELIST_PASSKEY:-}" || { echo "Missing GitHub secret FILELIST_PASSKEY"; exit 1; }
+
+          python3 <<'PY'
+          from pathlib import Path
+          import base64
+          import os
+          import re
+
+          ROOT = Path(".")
+          username_b64 = base64.b64encode(os.environ["FILELIST_USERNAME"].encode("utf-8")).decode("ascii")
+          passkey_b64 = base64.b64encode(os.environ["FILELIST_PASSKEY"].encode("utf-8")).decode("ascii")
+
+          common_path = ROOT / "composeApp/src/commonMain/kotlin/com/nuvio/app/features/streams/FileListProvider.kt"
+          common_path.parent.mkdir(parents=True, exist_ok=True)
+          common_path.write_text(r'''package com.nuvio.app.features.streams
+
+          internal const val FILELIST_ADDON_ID = "addon:filelist:native"
+          internal const val FILELIST_ADDON_NAME = "FileList"
+
+          internal expect fun isFileListConfigured(): Boolean
+
+          internal expect suspend fun fetchFileListStreams(
+              type: String,
+              videoId: String,
+              season: Int?,
+              episode: Int?,
+          ): List<StreamItem>
+          '''.replace("\n          ", "\n").lstrip(), encoding="utf-8")
+
+          android_path = ROOT / "composeApp/src/androidMain/kotlin/com/nuvio/app/features/streams/FileListProvider.android.kt"
+          android_path.parent.mkdir(parents=True, exist_ok=True)
+          android_source = r'''package com.nuvio.app.features.streams
+
+          import kotlinx.coroutines.Dispatchers
+          import kotlinx.coroutines.withContext
+          import org.json.JSONArray
+          import org.json.JSONObject
+          import org.json.JSONTokener
+          import java.net.HttpURLConnection
+          import java.net.URL
+          import java.net.URLEncoder
+          import java.security.MessageDigest
+          import android.util.Base64
+          import java.util.Locale
+
+          private const val FILELIST_USERNAME_B64 = "__USERNAME_B64__"
+          private const val FILELIST_PASSKEY_B64 = "__PASSKEY_B64__"
+          private const val FILELIST_API = "https://filelist.io/api.php"
+          private const val MAX_FILELIST_RESULTS = 20
+
+          private val fileListUsername: String by lazy {
+              String(Base64.decode(FILELIST_USERNAME_B64, Base64.NO_WRAP), Charsets.UTF_8)
+          }
+
+          private val fileListPasskey: String by lazy {
+              String(Base64.decode(FILELIST_PASSKEY_B64, Base64.NO_WRAP), Charsets.UTF_8)
+          }
+
+          internal actual fun isFileListConfigured(): Boolean =
+              fileListUsername.isNotBlank() && fileListPasskey.isNotBlank()
+
+          internal actual suspend fun fetchFileListStreams(
+              type: String,
+              videoId: String,
+              season: Int?,
+              episode: Int?,
+          ): List<StreamItem> = withContext(Dispatchers.IO) {
+              if (!isFileListConfigured()) return@withContext emptyList()
+
+              val isSeries = type.equals("series", ignoreCase = true) ||
+                  type.equals("tv", ignoreCase = true)
+
+              val imdbId = Regex("tt\\d{5,10}", RegexOption.IGNORE_CASE)
+                  .find(videoId)
+                  ?.value
+              val queryType = if (imdbId != null) "imdb" else "name"
+              val queryValue = imdbId ?: videoId
+              val categories = if (isSeries) {
+                  "21,23,27,24,15"
+              } else {
+                  "1,2,3,4,6,19,20,25,26"
+              }
+
+              val params = mutableListOf(
+                  "username" to fileListUsername,
+                  "passkey" to fileListPasskey,
+                  "action" to "search-torrents",
+                  "type" to queryType,
+                  "query" to queryValue,
+                  "category" to categories,
+                  "output" to "json",
+              )
+              if (isSeries && season != null) params += "season" to season.toString()
+              if (isSeries && episode != null) params += "episode" to episode.toString()
+
+              val searchUrl = FILELIST_API + "?" + params.joinToString("&") { (key, value) ->
+                  "${urlEncode(key)}=${urlEncode(value)}"
+              }
+
+              val searchResponse = httpGet(searchUrl)
+              if (searchResponse.code == 404) return@withContext emptyList()
+              if (searchResponse.code == 429) error("FileList: limita API a fost atinsa")
+              if (searchResponse.code !in 200..299) {
+                  error("FileList API HTTP ${searchResponse.code}")
+              }
+
+              val candidates = parseSearchResults(searchResponse.body.toString(Charsets.UTF_8))
+                  .sortedByDescending { it.optInt("seeders", 0) }
+                  .take(MAX_FILELIST_RESULTS)
+
+              buildList {
+                  for (item in candidates) {
+                      val torrentName = item.optString("name").trim()
+                      val downloadUrl = item.optString("download_link")
+                          .replace("&amp;", "&")
+                          .trim()
+                      if (torrentName.isBlank() || downloadUrl.isBlank()) continue
+
+                      val torrentResponse = runCatching { httpGet(downloadUrl) }.getOrNull() ?: continue
+                      if (torrentResponse.code !in 200..299 || torrentResponse.body.isEmpty()) continue
+
+                      val meta = runCatching {
+                          parseTorrentMeta(
+                              bytes = torrentResponse.body,
+                              season = season,
+                              episode = episode,
+                          )
+                      }.getOrNull() ?: continue
+
+                      val seeders = item.optInt("seeders", 0)
+                      val leechers = item.optInt("leechers", 0)
+                      val totalSize = item.optLong("size", 0L)
+                      val category = item.optString("category").trim()
+                      val chosenSize = meta.selectedFileSize ?: totalSize.takeIf { it > 0L }
+                      val chosenFilename = meta.selectedFilename ?: torrentName
+
+                      val description = buildString {
+                          append("FileList")
+                          append(" • ")
+                          append(seeders)
+                          append(" seed")
+                          if (leechers > 0) {
+                              append(" / ")
+                              append(leechers)
+                              append(" peer")
+                          }
+                          if (chosenSize != null && chosenSize > 0) {
+                              append(" • ")
+                              append(formatBytes(chosenSize))
+                          }
+                          if (category.isNotBlank()) {
+                              append(" • ")
+                              append(category)
+                          }
+                      }
+
+                      add(
+                          StreamItem(
+                              name = torrentName,
+                              title = torrentName,
+                              description = description,
+                              infoHash = meta.infoHash,
+                              fileIdx = meta.fileIndex,
+                              sources = meta.trackers.map { "tracker:$it" },
+                              sourceName = FILELIST_ADDON_NAME,
+                              addonName = FILELIST_ADDON_NAME,
+                              addonId = FILELIST_ADDON_ID,
+                              streamType = "torrent",
+                              behaviorHints = StreamBehaviorHints(
+                                  videoSize = chosenSize,
+                                  filename = chosenFilename,
+                              ),
+                          )
+                      )
+                  }
+              }
+          }
+
+          private data class HttpResult(
+              val code: Int,
+              val body: ByteArray,
+          )
+
+          private fun httpGet(url: String): HttpResult {
+              val connection = URL(url).openConnection() as HttpURLConnection
+              connection.requestMethod = "GET"
+              connection.instanceFollowRedirects = true
+              connection.connectTimeout = 12_000
+              connection.readTimeout = 20_000
+              connection.setRequestProperty("Accept", "*/*")
+              connection.setRequestProperty("User-Agent", "AFPlay/0.6.3 Android")
+              return try {
+                  val code = connection.responseCode
+                  val stream = if (code in 200..299) connection.inputStream else connection.errorStream
+                  HttpResult(code, stream?.use { it.readBytes() } ?: ByteArray(0))
+              } finally {
+                  connection.disconnect()
+              }
+          }
+
+          private fun parseSearchResults(body: String): List<JSONObject> {
+              if (body.isBlank()) return emptyList()
+              val value = JSONTokener(body).nextValue()
+              val array = when (value) {
+                  is JSONArray -> value
+                  is JSONObject -> value.optJSONArray("torrent_results")
+                      ?: value.optJSONArray("results")
+                      ?: value.optJSONArray("torrents")
+                      ?: JSONArray()
+                  else -> JSONArray()
+              }
+              return buildList {
+                  for (i in 0 until array.length()) {
+                      array.optJSONObject(i)?.let(::add)
+                  }
+              }
+          }
+
+          private data class TorrentMeta(
+              val infoHash: String,
+              val trackers: List<String>,
+              val fileIndex: Int?,
+              val selectedFilename: String?,
+              val selectedFileSize: Long?,
+          )
+
+          private data class BResult(
+              val value: Any?,
+              val next: Int,
+          )
+
+          private class BDecoder(private val data: ByteArray) {
+              fun parse(index: Int): BResult {
+                  require(index in data.indices) { "Bencode index out of range" }
+                  return when (val marker = data[index].toInt().toChar()) {
+                      'i' -> parseInteger(index)
+                      'l' -> parseList(index)
+                      'd' -> parseDictionary(index)
+                      in '0'..'9' -> parseBytes(index)
+                      else -> error("Invalid bencode marker: $marker")
+                  }
+              }
+
+              fun parseBytes(index: Int): BResult {
+                  var p = index
+                  var length = 0
+                  while (p < data.size && data[p].toInt().toChar() != ':') {
+                      val c = data[p].toInt().toChar()
+                      require(c in '0'..'9') { "Invalid bencode string length" }
+                      length = length * 10 + (c - '0')
+                      p++
+                  }
+                  require(p < data.size && data[p].toInt().toChar() == ':')
+                  val start = p + 1
+                  val end = start + length
+                  require(end <= data.size) { "Bencode string overflow" }
+                  return BResult(data.copyOfRange(start, end), end)
+              }
+
+              private fun parseInteger(index: Int): BResult {
+                  val end = findByte('e'.code.toByte(), index + 1)
+                  val number = data.copyOfRange(index + 1, end)
+                      .toString(Charsets.US_ASCII)
+                      .toLong()
+                  return BResult(number, end + 1)
+              }
+
+              private fun parseList(index: Int): BResult {
+                  val list = mutableListOf<Any?>()
+                  var p = index + 1
+                  while (p < data.size && data[p].toInt().toChar() != 'e') {
+                      val result = parse(p)
+                      list += result.value
+                      p = result.next
+                  }
+                  require(p < data.size) { "Unterminated bencode list" }
+                  return BResult(list, p + 1)
+              }
+
+              private fun parseDictionary(index: Int): BResult {
+                  val map = linkedMapOf<String, Any?>()
+                  var p = index + 1
+                  while (p < data.size && data[p].toInt().toChar() != 'e') {
+                      val key = parseBytes(p)
+                      val keyText = (key.value as ByteArray).toString(Charsets.UTF_8)
+                      val value = parse(key.next)
+                      map[keyText] = value.value
+                      p = value.next
+                  }
+                  require(p < data.size) { "Unterminated bencode dictionary" }
+                  return BResult(map, p + 1)
+              }
+
+              private fun findByte(target: Byte, start: Int): Int {
+                  for (i in start until data.size) {
+                      if (data[i] == target) return i
+                  }
+                  error("Bencode terminator not found")
+              }
+          }
+
+          private fun parseTorrentMeta(
+              bytes: ByteArray,
+              season: Int?,
+              episode: Int?,
+          ): TorrentMeta {
+              require(bytes.isNotEmpty() && bytes[0].toInt().toChar() == 'd') {
+                  "Torrent root is not a dictionary"
+              }
+
+              val decoder = BDecoder(bytes)
+              val root = linkedMapOf<String, Any?>()
+              var p = 1
+              var infoStart = -1
+              var infoEnd = -1
+
+              while (p < bytes.size && bytes[p].toInt().toChar() != 'e') {
+                  val keyResult = decoder.parseBytes(p)
+                  val key = (keyResult.value as ByteArray).toString(Charsets.UTF_8)
+                  val valueStart = keyResult.next
+                  val valueResult = decoder.parse(valueStart)
+                  root[key] = valueResult.value
+                  if (key == "info") {
+                      infoStart = valueStart
+                      infoEnd = valueResult.next
+                  }
+                  p = valueResult.next
+              }
+
+              require(infoStart >= 0 && infoEnd > infoStart) { "Torrent has no info dictionary" }
+              val infoHash = sha1Hex(bytes.copyOfRange(infoStart, infoEnd))
+              @Suppress("UNCHECKED_CAST")
+              val info = root["info"] as? Map<String, Any?> ?: emptyMap()
+
+              val trackers = linkedSetOf<String>()
+              root["announce"].asUtf8()?.trim()?.takeIf { it.isNotEmpty() }?.let(trackers::add)
+              val announceList = root["announce-list"] as? List<*>
+              announceList.orEmpty().forEach { tier ->
+                  when (tier) {
+                      is List<*> -> tier.forEach { it.asUtf8()?.trim()?.takeIf(String::isNotEmpty)?.let(trackers::add) }
+                      else -> tier.asUtf8()?.trim()?.takeIf(String::isNotEmpty)?.let(trackers::add)
+                  }
+              }
+
+              val selection = chooseTorrentFile(
+                  info = info,
+                  season = season,
+                  episode = episode,
+              )
+
+              return TorrentMeta(
+                  infoHash = infoHash,
+                  trackers = trackers.toList(),
+                  fileIndex = selection?.index,
+                  selectedFilename = selection?.path ?: info["name"].asUtf8(),
+                  selectedFileSize = selection?.length ?: (info["length"] as? Long),
+              )
+          }
+
+          private data class TorrentFile(
+              val index: Int,
+              val path: String,
+              val length: Long,
+          )
+
+          private fun chooseTorrentFile(
+              info: Map<String, Any?>,
+              season: Int?,
+              episode: Int?,
+          ): TorrentFile? {
+              val files = (info["files"] as? List<*>)
+                  ?.mapIndexedNotNull { index, raw ->
+                      @Suppress("UNCHECKED_CAST")
+                      val file = raw as? Map<String, Any?> ?: return@mapIndexedNotNull null
+                      val pathParts = (file["path"] as? List<*>)
+                          .orEmpty()
+                          .mapNotNull { it.asUtf8() }
+                      val path = pathParts.joinToString("/")
+                      val length = file["length"] as? Long ?: 0L
+                      if (path.isBlank()) null else TorrentFile(index, path, length)
+                  }
+                  .orEmpty()
+
+              if (files.isEmpty()) return null
+
+              if (season != null && episode != null) {
+                  val sxe = String.format(Locale.US, "S%02dE%02d", season, episode)
+                  val x = String.format(Locale.US, "%02dX%02d", season, episode)
+                  files.firstOrNull { file ->
+                      val upper = file.path.uppercase(Locale.US)
+                      upper.contains(sxe) || upper.contains(x)
+                  }?.let { return it }
+              }
+
+              val videoExtensions = setOf(
+                  "mkv", "mp4", "avi", "m4v", "mov", "ts", "m2ts", "webm", "wmv"
+              )
+              return files
+                  .filter { file ->
+                      file.path.substringAfterLast('.', "").lowercase(Locale.US) in videoExtensions
+                  }
+                  .maxByOrNull { it.length }
+                  ?: files.maxByOrNull { it.length }
+          }
+
+          private fun Any?.asUtf8(): String? =
+              (this as? ByteArray)?.toString(Charsets.UTF_8)
+
+          private fun sha1Hex(bytes: ByteArray): String =
+              MessageDigest.getInstance("SHA-1")
+                  .digest(bytes)
+                  .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+
+          private fun urlEncode(value: String): String =
+              URLEncoder.encode(value, Charsets.UTF_8.name())
+
+          private fun formatBytes(bytes: Long): String {
+              if (bytes <= 0L) return "0 B"
+              val units = arrayOf("B", "KB", "MB", "GB", "TB")
+              var value = bytes.toDouble()
+              var unit = 0
+              while (value >= 1024.0 && unit < units.lastIndex) {
+                  value /= 1024.0
+                  unit++
+              }
+              return if (unit <= 1) {
+                  String.format(Locale.US, "%.0f %s", value, units[unit])
+              } else {
+                  String.format(Locale.US, "%.1f %s", value, units[unit])
+              }
+          }
+          '''.replace("\n          ", "\n").lstrip()
+          android_source = android_source.replace("__USERNAME_B64__", username_b64)
+          android_source = android_source.replace("__PASSKEY_B64__", passkey_b64)
+          android_path.write_text(android_source, encoding="utf-8")
+
+          def patch_repository(path: Path):
+              text = path.read_text(encoding="utf-8")
+
+              provider_marker = "val pluginProviderGroups = pluginScrapers.toPluginProviderGroups("
+              marker_pos = text.find(provider_marker)
+              if marker_pos < 0:
+                  raise SystemExit(f"Provider declaration not found in {path}")
+
+              line_start = text.rfind("\n", 0, marker_pos) + 1
+              indent = text[line_start:marker_pos]
+              open_pos = text.find("(", marker_pos)
+              if open_pos < 0:
+                  raise SystemExit(f"Provider call opening parenthesis not found in {path}")
+
+              depth = 0
+              close_pos = -1
+              for i in range(open_pos, len(text)):
+                  ch = text[i]
+                  if ch == "(":
+                      depth += 1
+                  elif ch == ")":
+                      depth -= 1
+                      if depth == 0:
+                          close_pos = i
+                          break
+              if close_pos < 0:
+                  raise SystemExit(f"Provider call closing parenthesis not found in {path}")
+
+              line_end = text.find("\n", close_pos)
+              if line_end < 0:
+                  line_end = len(text)
+              insertion = f"\n{indent}val fileListEnabled = isFileListConfigured()"
+              if "val fileListEnabled = isFileListConfigured()" not in text:
+                  text = text[:line_end] + insertion + text[line_end:]
+
+              text = text.replace(
+                  "if (installedAddons.isEmpty() && pluginProviderGroups.isEmpty()) {",
+                  "if (installedAddons.isEmpty() && pluginProviderGroups.isEmpty() && !fileListEnabled) {",
+              )
+              text = text.replace(
+                  "if (streamAddons.isEmpty() && pluginProviderGroups.isEmpty()) {",
+                  "if (streamAddons.isEmpty() && pluginProviderGroups.isEmpty() && !fileListEnabled) {",
+              )
+
+              text = text.replace(
+                  "val installedAddonOrder = streamAddons.map { it.addonName }",
+                  "val installedAddonOrder = streamAddons.map { it.addonName } + if (fileListEnabled) listOf(FILELIST_ADDON_NAME) else emptyList()",
+              )
+
+              initial_pattern = re.compile(
+                  r'''        val initialGroups = StreamAutoPlaySelector\.orderAddonStreams\(streamAddons\.map \{ addon ->.*?        val isInitiallyLoading = initialGroups\.any \{ it\.isLoading \}''',
+                  re.S,
+              )
+              initial_replacement = '''        val initialGroupsRaw = streamAddons.map { addon ->
+                      AddonStreamGroup(
+                          addonName = addon.addonName,
+                          addonId = addon.addonId,
+                          streams = emptyList(),
+                          isLoading = true,
+                      )
+                  } + pluginProviderGroups.map { providerGroup ->
+                      AddonStreamGroup(
+                          addonName = providerGroup.addonName,
+                          addonId = providerGroup.addonId,
+                          streams = emptyList(),
+                          isLoading = true,
+                      )
+                  } + if (fileListEnabled) {
+                      listOf(
+                          AddonStreamGroup(
+                              addonName = FILELIST_ADDON_NAME,
+                              addonId = FILELIST_ADDON_ID,
+                              streams = emptyList(),
+                              isLoading = true,
+                          )
+                      )
+                  } else {
+                      emptyList()
+                  }
+                  val initialGroups = StreamAutoPlaySelector.orderAddonStreams(
+                      groups = initialGroupsRaw,
+                      installedOrder = installedAddonOrder,
+                  )
+                  val isInitiallyLoading = initialGroups.any { it.isLoading }'''.replace("\n          ", "\n")
+              text, count = initial_pattern.subn(initial_replacement, text)
+              if count != 1:
+                  raise SystemExit(f"Expected one initialGroups block in {path}, found {count}")
+
+              text = text.replace(
+                  "val installedAddonIds = streamAddons.map { it.addonId }.toSet()",
+                  "val installedAddonIds = streamAddons.map { it.addonId }.toSet() + if (fileListEnabled) setOf(FILELIST_ADDON_ID) else emptySet()",
+              )
+
+              total_pattern = re.compile(
+                  r'''val totalTasks = streamAddons\.size \+\s*pluginProviderGroups\.sumOf \{ it\.scrapers\.size \}'''
+              )
+              text, count = total_pattern.subn(
+                  "val totalTasks = streamAddons.size +\n"
+                  "                pluginProviderGroups.sumOf { it.scrapers.size } +\n"
+                  "                if (fileListEnabled) 1 else 0",
+                  text,
+              )
+              if count != 1:
+                  raise SystemExit(f"Expected one totalTasks in {path}, found {count}")
+
+              filelist_launch = '''            if (fileListEnabled) {
+                      launch {
+                          val group = runCatching {
+                              fetchFileListStreams(
+                                  type = type,
+                                  videoId = videoId,
+                                  season = season,
+                                  episode = episode,
+                              )
+                          }.fold(
+                              onSuccess = { streams ->
+                                  AddonStreamGroup(
+                                      addonName = FILELIST_ADDON_NAME,
+                                      addonId = FILELIST_ADDON_ID,
+                                      streams = streams,
+                                      isLoading = false,
+                                  )
+                              },
+                              onFailure = { error ->
+                                  log.w(error) { "FileList provider failed" }
+                                  AddonStreamGroup(
+                                      addonName = FILELIST_ADDON_NAME,
+                                      addonId = FILELIST_ADDON_ID,
+                                      streams = emptyList(),
+                                      isLoading = false,
+                                      error = error.message,
+                                  )
+                              },
+                          )
+                          publishCompletion(StreamLoadCompletion.Addon(group))
+                      }
+                  }
+
+          '''.replace("\n          ", "\n")
+              repeat_anchor = "            repeat(totalTasks) {\n"
+              if repeat_anchor not in text:
+                  raise SystemExit(f"repeat(totalTasks) anchor not found in {path}")
+              text = text.replace(repeat_anchor, filelist_launch + repeat_anchor, 1)
+
+              path.write_text(text, encoding="utf-8")
+
+          patch_repository(ROOT / "composeApp/src/commonMain/kotlin/com/nuvio/app/features/streams/StreamsRepository.kt")
+          patch_repository(ROOT / "composeApp/src/commonMain/kotlin/com/nuvio/app/features/player/PlayerStreamsRepository.kt")
+
+          version_path = ROOT / "iosApp/Configuration/Version.xcconfig"
+          version = version_path.read_text(encoding="utf-8")
+          version = re.sub(
+              r"CURRENT_PROJECT_VERSION=\d+",
+              "CURRENT_PROJECT_VERSION=265",
+              version,
+              count=1,
+          )
+          version_path.write_text(version, encoding="utf-8")
+
+          print("FileList provider added to AF Play torrent source aggregation.")
+          PY
+
+          grep -F 'FILELIST_ADDON_NAME = "FileList"' composeApp/src/commonMain/kotlin/com/nuvio/app/features/streams/FileListProvider.kt
+          grep -F 'fetchFileListStreams(' composeApp/src/commonMain/kotlin/com/nuvio/app/features/streams/StreamsRepository.kt
+          grep -F 'fetchFileListStreams(' composeApp/src/commonMain/kotlin/com/nuvio/app/features/player/PlayerStreamsRepository.kt
+          grep -F 'CURRENT_PROJECT_VERSION=265' iosApp/Configuration/Version.xcconfig
+
+      - name: Verify final source
+        shell: bash
+        run: |
+          set -euo pipefail
+          CAST="composeApp/src/androidMain/kotlin/com/nuvio/app/features/player/AfPlayCastButton.android.kt"
+          MANIFEST="androidApp/src/main/AndroidManifest.xml"
+          GATE="composeApp/src/androidMain/kotlin/com/nuvio/app/afplay/AfPlayActivationGate.kt"
+          MAIN="composeApp/src/androidMain/kotlin/com/nuvio/app/MainActivity.kt"
+
+          grep -F 'import com.google.android.gms.cast.framework.CastButtonFactory' "$CAST"
+          ! grep -F 'media.widget.CastButtonFactory' "$CAST"
+          test "$(grep -c 'android:name="com.nuvio.app.launcher.AppIconDefault"' "$MANIFEST")" -eq 1
+
+          test -f "$GATE"
+          grep -F 'https://afplay-gateway.smar7y.workers.dev' "$GATE"
+          grep -F '.filter { it.isLetterOrDigit() }' "$GATE"
+          grep -F 'AfPlayActivationGate {' "$MAIN"
+
+          grep -F 'MARKETING_VERSION=0.6.3' iosApp/Configuration/Version.xcconfig
+          grep -F 'CURRENT_PROJECT_VERSION=265' iosApp/Configuration/Version.xcconfig
+          grep -F 'FILELIST_ADDON_NAME = "FileList"' composeApp/src/commonMain/kotlin/com/nuvio/app/features/streams/FileListProvider.kt
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build AF Play 0.6.3
+        shell: bash
+        run: |
+          set -euo pipefail
+          touch local.properties
+          ./gradlew :androidApp:assembleFullDebug             -Pnuvio.android.distribution=full             -Pnuvio.app.versionName="0.6.3"             --stacktrace             --no-daemon
+
+      - name: Collect APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          apk="$(find androidApp/build/outputs/apk/full/debug -type f -name '*arm64-v8a*.apk' | head -n 1)"
+          test -n "$apk"
+          cp "$apk" out/AF-Play-0.6.3-FileList-FINAL-v2-arm64.apk
+          ls -lh out/AF-Play-0.6.3-FileList-FINAL-v2-arm64.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: AF-Play-0.6.3-FileList-FINAL-v2-arm64
+          path: out/AF-Play-0.6.3-FileList-FINAL-v2-arm64.apk
+          if-no-files-found: error
+          retention-days: 14
